@@ -99,8 +99,8 @@ module sh_parameters
   character(len=maxlen)              :: msg
   
   ! Normal shift data
-  integer::nshiftstep,nshiftdQ
-  real(kind=dp)::dtadQ
+  integer::nshiftstep,ndQ
+  real(kind=dp)::dtadQ,ldQ
   !!!!
   
 	namelist / shinput / na1site,na2site,na3site,temp,gamma,dt,&
@@ -433,17 +433,21 @@ module sh_parameters
   
   subroutine treat_parameters()
     use sh_constants
-    use sh_io,only : io_error,io_file_unit,open_file,close_file
+    use sh_io
     implicit none	
 
     Rcenter(1) =anint(na1site/2.0d0)
     Rcenter(2) =anint(na2site/2.0d0)
     Rcenter(3) =anint(na3site/2.0d0)
     allocate(HH0(1:nbasis,1:nbasis),HHt(1:nbasis,1:nbasis))
-    allocate(q(1:nfreem) ,Vq(1:nfreem) ,e(1:nbasis) ,p(1:nbasis,1:nbasis) ,&
-           d(1:nbasis,1:nbasis,1:nfreem) ,g_elec(1:nbasis),g_hole(1:nbasis) )
-    allocate(q0(1:nfreem),Vq0(1:nfreem),e0(1:nbasis),p0(1:nbasis,1:nbasis),&
-           d0(1:nbasis,1:nbasis,1:nfreem),g1_elec(1:nbasis),g1_hole(1:nbasis) )
+    allocate(Hep(1:nbasis,1:nbasis,1:nfreem))
+    allocate(Q(1:nfreem),Vq(1:nfreem),e(1:nbasis),p(1:nbasis,1:nbasis))
+    allocate(d(1:nbasis,1:nbasis,1:nfreem))
+    allocate(g_elec(1:nbasis),g_hole(1:nbasis) )
+    allocate(Q0(1:nfreem),Vq0(1:nfreem),e0(1:nbasis),p0(1:nbasis,1:nbasis))
+    allocate(d0(1:nbasis,1:nbasis,1:nfreem))
+    !allocate(d0(1:nbasis,1:nbasis,1:nfreem))
+    allocate(g1_elec(1:nbasis),g1_hole(1:nbasis) )
     allocate(pes(-1:nbasis,1:nsnap,1:naver),inf_hole(1:3,1:nsnap,1:naver),inf_elec(1:3,1:nsnap,1:naver),&
              csit_elec(1:nbasis,1:nsnap),csit_hole(1:nbasis,1:nsnap),&
            wsit_elec(1:nbasis,1:nsnap),wsit_hole(1:nbasis,1:nsnap),&

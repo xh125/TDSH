@@ -70,14 +70,12 @@ module sh_hamiltonian
     real(kind=dp)         :: ldQ
     character(len=maxlen) :: ctmpmode,ctmpldQ
     complex(kind=dpc),allocatable::HmnR_mode_dQ(:,:,:,:,:)
-    character(len=16),allocatable::charwf(:),charTij(:,:)
-    allocate(Hep(1:nbasis,1:nbasis,1:nfreem))
+    character(len=16),allocatable::charwf(:),charTij(:,:)   
     allocate(charwf(num_wann),charTij(num_wann,num_wann))
     
     Hep=0.0d0	
     nmode = nfreem
     ndQ   = 2*nshiftstep+1
-    dtadQ = real(nshiftdQ)/real(10000)
   
   if ( .Not. Lephfile)  then
     allocate(HmnR_mode_dQ(num_wann,num_wann,nrpts,ndQ,nmode))
@@ -89,17 +87,16 @@ module sh_hamiltonian
       !得到TB参数随该mode上偏移的变化,并写出该mode的phonon与电子之间的电声耦合强度，
       !包括局域与非局域
       do idQ=1,ndQ
-        ldQ=(idQ-nshiftdQ-1)*dtadQ
-        write(ctmpldQ,*) ldQ
+        ldQ=(idQ-nshiftstep-1)*dtadQ
+        write(ctmpldQ,"(F8.4)") ldQ
         
         Hr_name= "./nomashift/noma_"//trim(adjustl(ctmpmode))//&
-                  "shift_"//trim(adjustl(ctmpldQ))//"wannier90_hr.dat"
+                  "/shift_"//trim(adjustl(ctmpldQ))//"/wannier90_hr.dat"
         Hr_unit=io_file_unit()
         call open_file(Hr_name,Hr_unit)        
         read(Hr_unit, *) ctmp
         read(Hr_unit, *) num_wann
-        read(Hr_unit, *) nrpts
-        allocate(ndegen(nrpts))		    
+        read(Hr_unit, *) nrpts	    
         read(Hr_unit, *) (ndegen(irpts), irpts=1, nrpts)
         !read <m0|H|nR>
         !in wannier90_hr.dat R,m,n,HR,HI
@@ -156,11 +153,11 @@ module sh_hamiltonian
 				do n_wann=1,num_wann
 					do m_wann=1,num_wann
             NHmn = (irpts-1)*num_wann*num_wann+(n_wann-1)*num_wann+m_wann
-						write(HmnRdQ_noma_unit,ctmp) NHmn,irvec(:,irpts,nshiftdQ+1,imode),m_wann,n_wann,&
+						write(HmnRdQ_noma_unit,ctmp) NHmn,irvec(:,irpts,nshiftstep+1,imode),m_wann,n_wann,&
 							REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,:,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,nstep+1,imode)),&
-							REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/(2.0*real(nshiftdQ)*dtadQ)
-						write(eph_noma_unit,'(6I5,f16.8)') NHmn,irvec(:,irpts,nshiftdQ+1,imode),m_wann,n_wann,&
-							REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/(2.0*real(nshiftdQ)*dtadQ)            
+							REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/(2.0*real(nshiftstep)*dtadQ)
+						write(eph_noma_unit,'(6I5,f16.8)') NHmn,irvec(:,irpts,nshiftstep+1,imode),m_wann,n_wann,&
+							REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/(2.0*real(nshiftstep)*dtadQ)            
           enddo
 				enddo
 			enddo
@@ -174,7 +171,7 @@ module sh_hamiltonian
       write(ctmp,*) "(A8,1X,",num_wann*num_wann,'(A16,1X))'
       write(TijdQ_noma_unit,ctmp) "ldQ",((charTij(n_wann,m_wann),n_wann=1,num_wann),m_wann=1,num_wann)
       do idQ=1,ndQ
-				ldQ= (idQ-nshiftdQ-1)*dtadQ
+				ldQ= (idQ-nshiftstep-1)*dtadQ
 				write(TiidQ_noma_unit,'(F8.4,1X\)') ldQ
 				write(TijdQ_noma_unit,'(F8.4,1X\)') ldQ
 				do irpts=1,nrpts

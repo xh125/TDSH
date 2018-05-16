@@ -36,10 +36,9 @@ program SCSH
   write(stdout,*) 'SCSH :Execution started on ',cdate,' at ',ctime
   
   call read_parameters ()
-  !close(stdout,status='delete')  
+  call treat_parameters()
   call set_HH0()
   call set_Hep()
-  call treat_parameters()
   call init_random_seed()  
   
   !==========================!
