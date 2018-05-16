@@ -1,0 +1,316 @@
+module parameters
+  implicit none
+  
+  integer,parameter     ::  dp=kind(1.0D0)
+  integer,parameter     ::  maxlen=80
+  integer               ::  poscar_unit
+  character(len=maxlen) ::  poscar_name
+  character(len=maxlen) ::  ctmp,poscarcomment,Charac
+  character(len=maxlen) ::  ctmpstep,ctmpldQ,ctmpmode
+  real(kind=dp)         ::  scalel
+  real(kind=dp)         ::  real_lattice(3,3)
+  integer               ::  num_atoms,num_species
+  character(len=2),allocatable::  atoms_symbol(:)
+  integer,allocatable         ::  atoms_species_num(:)
+  integer :: ierr,itmp
+  integer :: nmode,nstep,i,j,k,m,ndQ
+  logical               :: lexist,lbsub
+  
+  integer :: iatomstype,iatom,imode,istep
+  real(kind=dp)  ::ldQ
+  real(kind=dp) :: dQ
+  character(len=maxlen)::comment,vecterfile
+  real(kind=dp),allocatable::positiondQ0(:,:)
+  real(kind=dp),allocatable::positiondQ(:,:)
+  real(kind=dp),allocatable::phonovecter(:,:,:)
+  
+  namelist /input/ ndQ,nstep,lbsub
+	!dQ=ndQ/10000
+  contains
+  
+  function io_file_unit() !得到一个当前未使用的unit，用于打开文件
+    !===========================================
+    !                                          
+    !! Returns an unused unit number
+    !! so we can later open a file on that unit.
+    !                                           
+    !===========================================
+    implicit none
+
+    integer :: io_file_unit,unit_index
+    logical :: file_open
+
+    unit_index = 9
+    file_open  = .true.
+    do while ( file_open )
+      unit_index = unit_index + 1
+      inquire( unit_index, OPENED = file_open ) !用于检查文件状态，参考P.536
+    end do
+
+    io_file_unit = unit_index
+
+    return
+  
+  end function io_file_unit
+  
+end module
+
+program mkPOSCAR
+  use parameters	
+  implicit none
+  call readPOSCAR()
+  call getUserInp()
+  call readVecter()
+  
+  inquire(directory = '../nomashift',exist=lexist)
+  if(lexist) call system('rm -rf ../nomashift')
+  call system('mkdir ../nomashift')
+	do imode=1,nmode
+    ! mkdir noma_imode
+    write(ctmpmode,*) imode
+    ctmp = "mkdir ../nomashift/noma_"// trim(adjustl(ctmpmode))
+    call system(ctmp)
+    do istep=1,2*nstep+1
+      ldQ=(istep-1)*dQ-nstep*dQ
+      write(ctmpldQ,"(F8.4)") ldQ
+      ctmp = "mkdir ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+                    "/shift_"//trim(adjustl(ctmpldQ))
+      call system(ctmp)
+      ctmp = "cp ../wannierinput/* ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+                 "/shift_"//trim(adjustl(ctmpldQ))
+      call system(ctmp)
+      call Write_nomal_shift_POSCAR(imode,istep)
+      
+      ctmp = "cd ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+            "/shift_"//trim(adjustl(ctmpldQ))//";bsub < vasp.bsub;cd -"
+      if(lbsub) then
+        if(istep /= nstep+1) then
+          call system(ctmp)
+        else
+          ctmp = "cp ../wannier/wannier90_hr.dat "//"../nomashift/noma_"// &
+          trim(adjustl(ctmpmode))//"/shift_"//trim(adjustl(ctmpldQ))
+          call system(ctmp)
+        endif
+      else
+        write(*,*) ctmp
+      endif
+      
+    enddo
+  enddo
+  
+  call freememmery()
+end program	
+	
+  subroutine readPOSCAR()
+    use parameters
+    implicit none         
+    
+    poscar_name  = 'POSCAR'
+    poscar_unit  = io_file_unit()
+    call open_file(poscar_name,poscar_unit)
+    read(poscar_unit,*) poscarcomment         !line 1
+    read(poscar_unit,"(F16.8)") scalel        !line 2
+    !line 3-5
+    read(poscar_unit,'(3F20.12)') ((real_lattice(I,J),J=1,3),I=1,3)
+    real_lattice = real_lattice*scalel
+    
+    !line 6-7
+    num_atoms    = 0
+    num_species  = 1
+    ierr = 0
+    read(poscar_unit,*)
+    do while(ierr <= 0)
+      allocate(atoms_species_num(num_species))
+      read(poscar_unit,FMT=*,iostat=ierr) (atoms_species_num(i),i=1,num_species)
+      num_species = num_species + 1
+      deallocate (atoms_species_num)
+      backspace(poscar_unit)
+    end do
+    num_species = num_species - 2
+    
+    allocate(atoms_symbol(num_species))
+    allocate(atoms_species_num(num_species))
+    backspace(poscar_unit)
+    backspace(poscar_unit)
+    !line 6-7
+    read(poscar_unit,FMT=*,iostat=ierr) (atoms_symbol(i),i=1,num_species)
+    read(poscar_unit,FMT=*,iostat=ierr) (atoms_species_num(i),i=1,num_species)
+    num_atoms = sum(atoms_species_num)
+    nmode = 3 * num_atoms
+    allocate(positiondQ0(3,num_atoms))
+    allocate(positiondQ(3,num_atoms))
+    !line 8
+    read(poscar_unit,*) Charac
+    !line 9-~
+    do iatom=1,num_atoms
+      !read(12,"(3F16.10)") ( positiondQ0(j,iatom),j=1,3)
+			read(poscar_unit,*) positiondQ0(:,iatom)
+		enddo
+    
+    call close_file(poscar_name,poscar_unit)
+  
+  end subroutine readPOSCAR
+  
+  subroutine Write_nomal_shift_POSCAR(iimode,iistep)
+    use parameters
+    implicit none
+    integer,intent(in)::iimode,iistep       		
+    poscar_name = "../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+                  "/shift_"//trim(adjustl(ctmpldQ))//"/POSCAR"
+    poscar_unit = io_file_unit()     
+    call open_file(poscar_name,poscar_unit)
+    
+    !line 1
+    write(poscar_unit,'(A30,1X,F8.4)') trim(adjustl(poscarcomment)),ldQ
+    !line 2
+    write(poscar_unit,"(F8.4)") scalel
+    !line 3~5
+    write(poscar_unit,'(3F20.12)') ((real_lattice(I,J),J=1,3),I=1,3)
+    !do i=1,3
+      !write(15,"(3F20.12)") (real_lattice(i,j),j=1,3)
+    !end do
+    !line 6
+    write(ctmp,'(I5)') num_species
+    ctmp = "("//trim(adjustl(ctmp))//"A5 )"
+    write(poscar_unit,ctmp) (atoms_symbol(i),i=1,num_species)
+    !line 7
+    write(ctmp,'(I5)') num_species
+    ctmp = "("//trim(adjustl(ctmp))//"I5)"
+    write(poscar_unit,ctmp) (atoms_species_num(i),i=1,num_species)
+    !line 8
+    if(Charac(1:1)=='C' .or. Charac(1:1)=='c') then
+      write(poscar_unit,*) trim(adjustl(Charac))
+      positiondQ(:,:)=positiondQ0(:,:)+ldQ*phonovecter(:,:,iimode)
+      do iatom=1,num_atoms
+        write(poscar_unit,"(3F16.9)") (positiondQ(j,iatom),j=1,3)
+      enddo
+      call close_file(poscar_name,poscar_unit)
+    else 
+		write(poscar_unit,*) "Direct"
+      call close_file(poscar_name,poscar_unit)
+      write(*,*) "POSCAR error!! need Caracter POSCAR"
+  		stop
+    endif		        
+  
+  end subroutine Write_nomal_shift_POSCAR
+  
+	subroutine getUserInp()
+    use parameters
+		implicit none
+		integer               ::inp_unit
+    character(len=maxlen) ::inp_name
+		! set default values for namelist parameters
+		nstep = 5
+		ndQ   = 20
+		dQ    = 0.0020
+    lbsub = .False.
+		!
+		inp_unit  = io_file_unit()
+    inp_name  = 'shiftinp'
+    !call open_file(inp_name,inp_unit)
+    open(unit=inp_unit,file=inp_name,status='unknown',action='read',iostat=ierr)
+		if(ierr/=0) then
+			write(*,*) "I/O error with input file : 'shiftinp'"
+			stop
+		endif
+		read(inp_unit,nml=input)
+		call close_file(inp_name,inp_unit)		
+		dQ=real(ndQ)/real(10000)		
+		allocate(phonovecter(3,num_atoms,nmode))
+		!allocate(Symatom(num_atomsstype))
+		!allocate(atomstype(num_atomsstype))
+		!allocate(positiondQ0(3,num_atoms))
+		!allocate(positiondQ(3,num_atoms))
+		
+	end subroutine getUserInp
+	
+	subroutine readVecter()
+    use parameters
+		implicit none
+    character(len=maxlen) :: wvecter_name
+    integer               :: wvecter_unit
+    inquire(file='wvecter.txt',exist=lexist)
+    
+    if(.NOT. lexist) then
+      call system('grep -A200 "Eigenvectors and eigenvalues of the dynamical matrix" OUTCAR>wvecter.txt')
+      call system('wait')
+    endif
+    
+    wvecter_unit = io_file_unit()
+    wvecter_name = "wvecter.txt"
+    call open_file(wvecter_name,wvecter_unit)
+		!read the first 3 lines.
+		read(wvecter_unit,"(1X,//,A50)") comment
+
+		do imode=1,nmode
+			read(wvecter_unit,"(1X,//,A50)") comment
+			do iatom=1,num_atoms
+				read(wvecter_unit,*) positiondQ0(:,iatom),phonovecter(:,iatom,imode)
+			end do
+		end do
+    
+		call close_file(wvecter_name,wvecter_unit)
+	
+	end subroutine readVecter			
+		
+	subroutine freememmery()
+    use parameters
+		implicit none
+		
+		deallocate(phonovecter)
+		deallocate(atoms_symbol,atoms_species_num)
+		deallocate(positiondQ0)
+		deallocate(positiondQ)
+    
+	end subroutine freememmery    
+  
+  subroutine open_file(file_name,file_unit)
+    implicit none
+    integer,parameter::maxlen=80
+    character(len=*),intent(in) :: file_name
+    integer,intent(in)          :: file_unit
+    integer::ierr
+    character(len=maxlen)::msg
+    
+    open(unit=file_unit, file=file_name,iostat=ierr,iomsg=msg)
+    if(ierr /= 0 ) then
+      call io_error('Error: Problem opening "'//trim(adjustl(file_name))//' " file')
+      call io_error(msg)
+    endif
+  end subroutine open_file
+  
+  subroutine close_file(file_name,file_unit)    
+    implicit none
+    integer,parameter::maxlen=80
+    integer::ierr
+    character(len=maxlen)::msg
+    integer,intent(in)          :: file_unit
+    character(len=*),intent(in) :: file_name
+    close(file_unit,iostat=ierr,iomsg=msg)
+    if(ierr /= 0 ) then
+      call io_error('Error: Problem close "'//trim(adjustl(file_name))//' " file')
+      call io_error(msg)
+    endif
+    
+  end subroutine close_file
+  
+  subroutine io_error ( error_msg )
+  !========================================
+  !! Abort the code giving an error message 
+  !========================================
+
+    implicit none
+    character(len=*), intent(in) :: error_msg
+
+    !write(stdout,*)  'Exiting.......' 
+    !write(stdout, '(1x,a)') trim(error_msg)    
+    !close(stdout)    
+    write(*, '(1x,a)') trim(error_msg)
+    write(*,'(A)') "Error: examine the output/error file for details" 
+    
+    STOP
+         
+  end subroutine io_error
+
+  
+  
