@@ -5,7 +5,7 @@
 !=====================================================================================================!
 !=system-bath interactions by xiehua at department of physic, USTC;xh125@mail.ustc.edu.cn            =!     
 !=====================================================================================================!
-!= Last updata 2018-5.11 Version:0.2.4                                                                !   
+!= Last updata 2018-5.16 Version:0.2.5                                                                !   
 !                                                                                                     !                                                                                                     !
 !=====================================================================================================!
 
@@ -44,15 +44,8 @@ program SCSH
   !==========================!
   != loop over realizations =!
   !==========================!
-  call system('export OMP_NESTED=.TRUE.')
-  !!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(Q,Vq,e,p,c_elec,w_elec,c_hole,w_hole,&
-  !!$OMP d,Q0,Vq0,e0,p0,d0,w0_elec,w0_hole)
-  !SHARED() PRIVATE(Q,Vq,e,p,c_elec,c_hole,w_elec,w_hole)
-  !!$OMP DO
   do iaver=1,naver
-    !!$OMP CRITICAL write_iaver
-    write(6,'(a,i4.4,a)') '###### iaver=',iaver,' ######'
-    !!$OMP END CRITICAL write_iaver
+    write(stdout,'(a,i4.4,a)') '###### iaver=',iaver,' ######'
     !==================!
     != initialization =!
     !==================!
@@ -153,8 +146,6 @@ program SCSH
     enddo
   
   enddo
-  !!$OMP END DO
-  !!$OMP END PARALLEL 
   
   csit_elec=csit_elec/naver
   csit_hole=csit_hole/naver

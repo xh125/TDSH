@@ -68,6 +68,7 @@ module sh_constants
   real(kind=dp), parameter, public :: bohr = bohr_angstrom_internal
   !! 4*pi*eps0
   real(kind=dp), parameter, public :: fopieps0 = 4*pi*eps0_SI
+  real(kind=dp), parameter, public :: THz2womiga = 1.0e12_dp               !f=  rad/s
   
   ! Leave the length to this value, and don't exceed in length (needed for output formatting)
   character(len=75), parameter, public :: constants_version_str1 = "-> Using CODATA 2010 constant values"

@@ -366,11 +366,13 @@ module sh_parameters
     read(wvecter_unit,'(//,A)') ctmp
     do ifreem=1,nfreem
       read(wvecter_unit,'(A)') ctmp
-      read(wvecter_unit,'(T63,F12.7)') womiga(ifreem)
+      read(wvecter_unit,'(T26,F12.7)') womiga(ifreem) !THz*twopi
       do iatom=1,num_atoms+1
         read(wvecter_unit,*) ctmp
       enddo
     enddo
+    womiga(:)=womiga(:)*THz2womiga
+    
     call close_file(wvecter_name,wvecter_unit)
     
   end subroutine readwomiga

@@ -20,7 +20,7 @@ module sh_dynamic
     do ifreem=1,nfreem
       !xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/k))
       !vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/mass))
-      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/(womiga(ifreem))**2))
+      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/(womiga(ifreem)))
       vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp))
     enddo
     
@@ -91,7 +91,7 @@ module sh_dynamic
     logical :: LnotfindWF
     
     allocate(elecKBproj(0:num_wann))
-    elecKBproj(1:num_wann) = bands_projs(:,elec_band,elec_K)
+    elecKBproj(1:num_wann) = bands_projs(elec_K,elec_band,:)
     elecKBproj(0) = 0.0
     sumproj = 0.0
     do i=1,num_wann

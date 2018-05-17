@@ -29,7 +29,7 @@ module sh_utility
   public :: utility_wgauss
   public :: utility_diagonalize
 
-contains
+  contains
 
   !=============================================================!
   subroutine utility_zgemm(c,a,transa,b,transb,n)

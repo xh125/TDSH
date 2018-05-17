@@ -2,10 +2,6 @@ module sh_io
   !! Module to handle operations related to file input and output.
   
   use sh_constants,only : dp
-
-!#ifdef MPI
-!  use mpi
-!#endif
   
   implicit none
   
@@ -114,7 +110,7 @@ contains
   
   
   !========================================
-    subroutine io_error ( error_msg )
+  subroutine io_error ( error_msg )
   !========================================
   !! Abort the code giving an error message 
   !========================================
@@ -122,53 +118,24 @@ contains
     implicit none
     character(len=*), intent(in) :: error_msg
 
-!#ifdef MPI
-!    character(len=50) :: filename
-!    integer           :: stderr,ierr,cpuid
-!    
-!    call mpi_comm_rank(mpi_comm_world,cpuid, ierr)
-!    if(whoami>99999) then
-!      write(filename,'(a,I0,a)')'sh.node_',cpuid,'.err'
-!    else
-!      write(filename,'(a,I5.5,a)')'sh.node_',cpuid,'.err'
-!    endif
-!    stderr=io_file_unit()
-!    open(unit=stderr,file=trim(filename),form='formatted',err=105)
-!    write(stderr, '(1x,a)') trim(error_msg)
-!    close(stderr)
-!
-!105 write(*,'(1x,a)') trim(error_msg)
-!106 write(*,'(1x,a,I0,a)') "Error on node ",cpuid, &
-!                           ": examine the output/error files for details"
-!    
-!    call MPI_abort(MPI_comm_world,1,ierr)
-!
-!#else
-
     write(stdout,*)  'Exiting.......' 
     write(stdout, '(1x,a)') trim(error_msg)    
     close(stdout)    
     write(*, '(1x,a)') trim(error_msg)
     write(*,'(A)') "Error: examine the output/error file for details" 
-!#endif
-
-!#ifdef EXIT_FLAG
-!    call exit(1)
-!#else
     STOP
-!#endif
          
   end subroutine io_error
     
     
   !=======================================================
-    subroutine io_date(cdate, ctime)
+  subroutine io_date(cdate, ctime)
   !=======================================================
-    !                                                      
-    !! Returns two strings containing the date and the time 
-    !! in human-readable format. Uses a standard f90 call.
-    !                                                    
-    !=======================================================
+  !                                                      
+  !! Returns two strings containing the date and the time 
+  !! in human-readable format. Uses a standard f90 call.
+  !                                                    
+  !=======================================================
     implicit none
     character (len=9), intent(out) :: cdate
     !! The date
@@ -235,9 +202,9 @@ contains
     file_open  = .true.
     do while ( file_open )
       unit_index = unit_index + 1
-      inquire( unit_index, OPENED = file_open ) !用于检查文件状态，参考P.536
+      inquire( unit=unit_index, OPENED = file_open ) !用于检查文件状态，参考P.536
     end do
-
+    
     io_file_unit = unit_index
 
     return
@@ -267,7 +234,6 @@ contains
       call io_error(msg)
     endif   
   end subroutine close_file
-    
-  
+   
 end module sh_io
   
