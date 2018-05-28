@@ -1,17 +1,19 @@
 module sh_parameters
   !! This module contains parameters to control the actions of SCSH.
   !! Also routines to read the parameters and write them out again.
-  use sh_constants,only : dp,dpc
+  use sh_constants
   use sh_io       ,only : stdout,maxlen
   
   implicit none
   
-  integer,public  ::  na1site,ia1site,na2site,ia2site,na3site,ia3site
-  !! Number of cell in three lattice
-  integer,public  ::  num_wann,iwann
+  integer,public  ::  na1site,ia1site,na2site,ia2site
+  !! Number of cell in xy plan
+  integer,public  ::  num_wann,iwann,n_wann,m_wann
+  !! Number of wannier function in home-unit cell
+  integer,public  ::  Num_occupied,Num_unoccupied,nband_hole,nband_elec
   !! Number of wannier Wavefunction in one cell
   integer,public  ::  nbasis,ibasis
-  !! Number of basis in Hamitonian( nbasis = na1site*na2site*na3site*num_wann)
+  !! Number of basis in Hamitonian( nbasis = na1site*na2site*num_wann)
   integer,public  ::  nfreem,ifreem
   !! Number of phonon zhishu (nfreem = natoms*3)
   integer         ::  naver,iaver
@@ -19,72 +21,90 @@ module sh_parameters
   integer         ::  nsnap,isnap
   !! Number of snap in one trajects
   integer,public  ::  nstep,istep
-  !! Number of electro MD step in one snap
-  integer,public  ::  isurface_elec,isurface_hole    !
-  !! The elecrto or hole state index
-  integer         ::  Rcenter(3)
-  integer         ::  Rcenter_elec(0:3),Rcenter_hole(0:3)
-  !integer         ::  icenter_index
-  !! The elecrto or hole state in real space 
-  !real(kind=dp) mass,temp,gamma,dt,alpha,k,tau
+  !! Number of electro MD step in one snap  
   real(kind=dp)   ::  temp
   !!The temperature of the system
   real(kind=dp)   ::  gamma
-  !! The fraction coefficient characterizing system-bath coupling strength
+  !! The fraction coefficient characterizing system-bath coupling strength danwei ps(1-20ps)
   real(kind=dp)   ::  dt
-  !! The time interval
-
-  
-  ! Atom sites
-  character(len=maxlen),save :: seedname           
-  real(kind=dp)        ,allocatable,public, save :: atoms_pos_frac(:,:,:)
-  real(kind=dp)        ,allocatable,public, save :: atoms_pos_cart(:,:,:)
-  integer              ,allocatable,public, save :: atoms_species_num(:)  
-  character(len=maxlen),allocatable,public, save :: atoms_label(:)
-  character(len=2)     ,allocatable,public, save :: atoms_symbol(:)
-  integer                          ,public, save :: num_atoms,iatom
-    !! Number of atoms in one cell
-  integer                          ,public, save :: num_species
-    !! Number of species of atoms in one cell
-    
-  real(kind=dp),     public, save :: real_lattice(3,3)  
-  integer,           public, save :: num_kpts
-  real(kind=dp),     public, save :: recip_lattice(3,3)
-  real(kind=dp),     public, save :: cell_volume
-  
-  real(kind=dp),allocatable :: Rwann(:,:) 
-  !the center of wannier wavefunction
-	real(kind=dp),allocatable :: womiga(:)  
+  !! The time interval(fs)
+  real(kind=dp),allocatable :: womiga(:)  
   !the w of nomal viboration
-  
-  real(kind=dp),allocatable,public :: HH0(:,:),HHt(:,:),Hep(:,:,:)
+  real(kind=dp),allocatable,public :: HmnR_Tij_0(:,:,:,:),HmnR_Tij_ep(:,:,:,:,:)
+  !平衡位置TB参数，以及TB参数对简正坐标的导数( 电声耦合常数 )
+  real(kind=dp),allocatable,public :: HmnR_Tij_total(:,:,:,:)
+  real(kind=dp),allocatable,public :: HmnR_Tij_hole(:,:,:,:),HmnR_Tij_elec(:,:,:,:)
+  ! 考虑最邻近cell之间的转移积分的TB的参数以及电声相互作用对转移积分的影响，
+  ! 包含局域与非局域电声相互作用后的TB参数
+  !real(kind=dp),allocatable,public :: HH0(:,:),HHt(:,:),Hep(:,:,:)
+  real(kind=dp),allocatable,public :: H_hole(:,:),H_elec(:,:)
+  ! 电子和空穴的TB-Hamitonian
+  integer,public  ::  isurface_elec,isurface_hole    
+  !! 电子和空穴在势能面上的指标
+  !! The elecrto or hole state index
+  integer         ::  R_elec(0:2),R_hole(0:2)
+  ! 电子和空穴所在的site包含晶胞R，和wannier函数指标
+
   !real(kind=dp),allocatable,public :: q(:),v(:),e(:),p(:,:),d(:,:,:),g(:)
   !real(kind=dp),allocatable,public :: q0(:),v0(:),e0(:),p0(:,:),d0(:,:,:),g1(:)
-  real(kind=dp),allocatable,public :: Q(:),Vq(:),e(:),p(:,:),d(:,:,:),g_elec(:),g_hole(:)
-  real(kind=dp),allocatable,public :: Q0(:),Vq0(:),e0(:),p0(:,:),d0(:,:,:),g1_elec(:),g1_hole(:)
-  real(kind=dp),allocatable,public :: pes(:,:,:),inf_elec(:,:,:),inf_hole(:,:,:),csit_elec(:,:),csit_hole(:,:),&
-                                      wsit_elec(:,:),wsit_hole(:,:),psit_elec(:,:),&
-                            psit_hole(:,:),xsit(:,:),ksit(:,:),msd(:),ipr_elec(:),ipr_hole(:),msds(:,:)
-  !real(kind=dp),allocatable,public :: pes_hole(:,:,:),inf(:,:,:),csit(:,:),wsit(:,:),&
-                            !psit(:,:),xsit(:,:),ksit(:,:),msd(:),ipr(:),msds(:,:)                            
-  complex(kind=dpc),allocatable    :: c_elec(:),w_elec(:),w0_elec(:),&
-                                      c_hole(:),w_hole(:),w0_hole(:)
+  real(kind=dp),allocatable,public :: Q(:),Vq(:),Q0(:),Vq0(:)
+  real(kind=dp),allocatable,public :: e_elec(:),p_elec(:,:),d_elec(:,:,:),g_elec(:)
+  real(kind=dp),allocatable,public :: e_hole(:),p_hole(:,:),d_hole(:,:,:),g_hole(:)
+  !电子和空穴的本征值本征态，非绝热耦合项，跃迁几率元
+  real(kind=dp),allocatable,public :: e0_elec(:),p0_elec(:,:),d0_elec(:,:,:),g1_elec(:)
+  real(kind=dp),allocatable,public :: e0_hole(:),p0_hole(:,:),d0_hole(:,:,:),g1_hole(:)
+  
+  real(kind=dp),allocatable,public :: pes_elec(:,:,:),inf_elec(:,:,:),csit_elec(:,:),&
+                                      wsit_elec(:,:),psit_elec(:,:),ipr_elec(:)                         
+  real(kind=dp),allocatable,public :: pes_hole(:,:,:),inf_hole(:,:,:),csit_hole(:,:),&
+                                      wsit_hole(:,:),psit_hole(:,:),ipr_hole(:)
+  real(kind=dp),allocatable,public :: pes_exciton(:,:,:)
+  
+  complex(kind=dpc),allocatable,public :: c_elec(:) , w_elec(:) , w0_elec(:)
+  complex(kind=dpc),allocatable,public :: c_hole(:) , w_hole(:) , w0_hole(:)    
+  real(kind=dp),allocatable,public     :: n_elec(:,:,:) , n_hole(:,:,:)
+  !电子和空穴的占据分布
+  real(kind=dp),allocatable,public :: xsit(:,:),ksit(:,:),msd(:),msds(:,:) 
   
   !initial state elec and hole
   integer ::  init_elec_K,elecK
   integer ::  init_elec_band,elecB
   integer ::  init_elec_WF
-  integer ::  icenter_elec
+  integer ::  index_elec
   integer ::  init_hole_K,holeK
   integer ::  init_hole_band,holeB
   integer ::  init_hole_WF
-  integer ::  icenter_hole
+  integer ::  index_hole
   !! Dielectric Constant ->  $$\epsilon_r$$
   real(kind=dp):: epsr
   !!!band project on WFs
   real(kind=dp),allocatable,public :: bands_projs(:,:,:)
   real(kind=dp)     ::t0,t1,time0,time1,time2
   character(len=9)  ::cdate,ctime 
+  
+  integer         ::  Rcenter(3)
+  ! 体系的中心
+ 
+  ! Atom sites POSCAR information
+  !character(len=maxlen),save :: seedname           
+  real(kind=dp)        ,allocatable,public, save :: atoms_pos_frac(:,:,:)
+  real(kind=dp)        ,allocatable,public, save :: atoms_pos_cart(:,:,:)
+  integer              ,allocatable,public, save :: atoms_species_num(:)  
+  character(len=maxlen),allocatable,public, save :: atoms_label(:)
+  character(len=2)     ,allocatable,public, save :: atoms_symbol(:)
+  integer                          ,public, save :: num_atoms,iatom
+  !! Number of atoms in one cell
+  integer                          ,public, save :: num_species
+  !! Number of species of atoms in one cell    
+  real(kind=dp),     public, save :: real_lattice(3,3) 
+  real(kind=dp),     public, save :: a_lattice
+  !晶格常数，用于HUbbard-like electron-hole interaction
+  integer,           public, save :: num_kpts
+  real(kind=dp),     public, save :: recip_lattice(3,3)
+  real(kind=dp),     public, save :: cell_volume
+  
+  real(kind=dp),allocatable :: Rwann(:,:) 
+  !the center of wannier wavefunction
   
   real(kind=dp)     ::sumg0_elec,sumg0_hole,sumg1_elec,sumg1_hole,&
                       minde_elec,minde_hole,flagd_elec,flagd_hole
@@ -103,9 +123,9 @@ module sh_parameters
   real(kind=dp)::dtadQ,ldQ
   !!!!
   
-	namelist / shinput / na1site,na2site,na3site,temp,gamma,dt,&
+	namelist / shinput / na1site,na2site,temp,gamma,dt,&
                        nstep,nsnap,naver,elecb,eleck,holeb,holek,&
-                       epsr,nshiftstep,dtadq,lephfile
+                       epsr,nshiftstep,dtadq,lephfile,Num_occupied
   
   contains  
   
@@ -129,6 +149,7 @@ module sh_parameters
     call readWomiga()
     call readWFcentre()
     call readBandProjs()
+    call treat_parameters()
     
   end subroutine read_parameters
   
@@ -252,7 +273,6 @@ module sh_parameters
       !initial parameters
       na1site = 100
       na2site = 100
-      na3site = 100
       temp    = 300
       gamma   = 0.05
       dt      = 0.01
@@ -264,6 +284,7 @@ module sh_parameters
       holeB   = 17
       holeK   = 100
       Lephfile= .False.
+      Num_occupied= 1
       !end initial
       read(UNIT=incar_unit,nml=shinput,iostat=ierr,iomsg=msg)
       if(ierr /= 0) then
@@ -275,6 +296,9 @@ module sh_parameters
       init_elec_band  = elecB
       init_hole_K     = holeK
       init_hole_band  = holeB
+      Num_unoccupied  = num_wann - Num_occupied
+      nband_elec      = Num_unoccupied
+      nband_hole      = Num_occupied
       
       close(incar_unit)
       
@@ -293,7 +317,7 @@ module sh_parameters
     read(Hr_unit, *) num_wann
     rewind(Hr_unit)
     call close_file(Hr_name,Hr_unit)
-    nbasis = na1site*na2site*na3site*num_wann
+    nbasis = na1site*na2site*num_wann
     
   end subroutine set_num_wann
   
@@ -316,6 +340,7 @@ module sh_parameters
     read(poscar_unit,"(F16.8)") scaling
     read(poscar_unit,'(3F20.12)') ((real_lattice(I,J),J=1,3),I=1,3)
     real_lattice = real_lattice*scaling
+    a_lattice = sqrt(Sum(real_lattice(1,:)**2))
     call utility_recip_lattice (real_lattice,recip_lattice,cell_volume)
     
     num_atoms    = 0
@@ -440,27 +465,38 @@ module sh_parameters
 
     Rcenter(1) =anint(na1site/2.0d0)
     Rcenter(2) =anint(na2site/2.0d0)
-    Rcenter(3) =anint(na3site/2.0d0)
-    allocate(HH0(1:nbasis,1:nbasis),HHt(1:nbasis,1:nbasis))
-    allocate(Hep(1:nbasis,1:nbasis,1:nfreem))
-    allocate(Q(1:nfreem),Vq(1:nfreem),e(1:nbasis),p(1:nbasis,1:nbasis))
-    allocate(d(1:nbasis,1:nbasis,1:nfreem))
-    allocate(g_elec(1:nbasis),g_hole(1:nbasis) )
-    allocate(Q0(1:nfreem),Vq0(1:nfreem),e0(1:nbasis),p0(1:nbasis,1:nbasis))
-    allocate(d0(1:nbasis,1:nbasis,1:nfreem))
-    !allocate(d0(1:nbasis,1:nbasis,1:nfreem))
-    allocate(g1_elec(1:nbasis),g1_hole(1:nbasis) )
-    allocate(pes(-1:nbasis,1:nsnap,1:naver),inf_hole(1:3,1:nsnap,1:naver),inf_elec(1:3,1:nsnap,1:naver),&
-             csit_elec(1:nbasis,1:nsnap),csit_hole(1:nbasis,1:nsnap),&
-           wsit_elec(1:nbasis,1:nsnap),wsit_hole(1:nbasis,1:nsnap),&
-           psit_elec(1:nbasis,1:nsnap),psit_hole(1:nbasis,1:nsnap),xsit(1:nbasis,1:nsnap),&
-           ksit(1:nbasis,1:nsnap),msd(1:nsnap) )
-    allocate(ipr_elec(1:nsnap),ipr_hole(1:nsnap),msds(1:nsnap,1:naver))
+    !HmnR_Tij(m,n,ir1, ir2)
+    allocate(HmnR_Tij_0(num_wann,num_wann,-1:1,-1:1))
+    !HmnR_Tij_ep(m,n,ir1, ir2,nfreem)
+    allocate(HmnR_Tij_ep(num_wann,num_wann,-1:1,-1:1,nfreem))
+    allocate(HmnR_Tij_total(num_wann,num_wann,-1:1,-1:1))
+    allocate(HmnR_Tij_hole(num_wann,num_wann,-1:1,-1:1))
+    allocate(HmnR_Tij_elec(num_wann,num_wann,-1:1,-1:1))
+    !allocate(HH0(1:nbasis,1:nbasis),HHt(1:nbasis,1:nbasis))
+    !allocate(Hep(1:nbasis,1:nbasis,1:nfreem))
+    allocate(H_hole(nbasis,nbasis),H_elec(nbasis,nbasis))
+    allocate(Q(1:nfreem),Vq(1:nfreem),Q0(1:nfreem),Vq0(1:nfreem))
+    allocate(e_elec(1:nbasis),p_elec(1:nbasis,1:nbasis),d_elec(1:nbasis,1:nbasis,1:nfreem),g_elec(1:nbasis))
+    allocate(e_hole(1:nbasis),p_hole(1:nbasis,1:nbasis),d_hole(1:nbasis,1:nbasis,1:nfreem),g_hole(1:nbasis))
+    allocate(e0_elec(1:nbasis),p0_elec(1:nbasis,1:nbasis),d0_elec(1:nbasis,1:nbasis,1:nfreem),g1_elec(1:nbasis))
+    allocate(e0_hole(1:nbasis),p0_hole(1:nbasis,1:nbasis),d0_hole(1:nbasis,1:nbasis,1:nfreem),g1_hole(1:nbasis))
+    allocate(pes_elec(0:nbasis,1:nsnap,1:naver),inf_elec(1:3,1:nsnap,1:naver),csit_elec(1:nbasis,1:nsnap),&
+           wsit_elec(1:nbasis,1:nsnap),psit_elec(1:nbasis,1:nsnap),ipr_elec(1:nsnap) )           
+    allocate(pes_hole(0:nbasis,1:nsnap,1:naver),inf_hole(1:3,1:nsnap,1:naver),csit_hole(1:nbasis,1:nsnap),&
+           wsit_hole(1:nbasis,1:nsnap),psit_hole(1:nbasis,1:nsnap),ipr_hole(1:nsnap) )
+    allocate(pes_exciton(-1:nbasis,1:nsnap,1:naver))
     allocate(c_elec(1:nbasis),w_elec(1:nbasis),w0_elec(1:nbasis))
     allocate(c_hole(1:nbasis),w_hole(1:nbasis),w0_hole(1:nbasis))
-  
+    allocate(n_elec(num_wann,na1site,na2site),n_hole(num_wann,na1site,na2site))
+    allocate(msds(1:nsnap,1:naver),xsit(1:nbasis,1:nsnap),ksit(1:nbasis,1:nsnap),msd(1:nsnap))
+    
+    gamma = gamma/Au2ps
+    !kb    = kb/Au2J
+    dt    = dt/Au2fs
+    
     !!initiali
-    pes       =  0.0d0
+    pes_elec  =  0.0d0
+    pes_hole  =  0.0d0
     inf_elec  =  0.0d0
     inf_hole  =  0.0d0
     csit_elec =  0.0d0
@@ -475,6 +511,11 @@ module sh_parameters
     ipr_elec  =  0.0d0
     ipr_hole  =  0.0d0
     msds      =  0.0d0
+    HmnR_Tij_0    =   0.0d0
+    HmnR_Tij_elec =   0.0d0
+    HmnR_Tij_ep   =   0.0d0
+    HmnR_Tij_hole =   0.0d0
+    HmnR_Tij_total=   0.0d0
   
   end subroutine  treat_parameters
  

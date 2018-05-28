@@ -20,8 +20,8 @@ module sh_dynamic
     do ifreem=1,nfreem
       !xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/k))
       !vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/mass))
-      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/(womiga(ifreem)))
-      vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp))
+      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(k_B_SI*temp)/(womiga(ifreem)))
+      vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(k_B_SI*temp*temp))
     enddo
     
   end subroutine init_coordinate_velocity
@@ -30,42 +30,54 @@ module sh_dynamic
   != init dynamical variable                              =!
   !========================================================!
   !=incluse inintial state in adiabatic and diabatic .    =! 
-  subroutine init_dynamical_variable(xx,ee,pp,cc_elec,ww_elec,cc_hole,ww_hole)
-
+  subroutine init_dynamical_variable(xx,ee_elec,pp_elec,ee_hole,pp_hole,&
+                                      cc_elec,ww_elec,cc_hole,ww_hole)
     implicit none
 
     !integer ibasis
-    real(kind=dp):: xx(1:nfreem),ee(1:nbasis),pp(1:nbasis,1:nbasis),flagr,flagd
+    real(kind=dp):: xx(1:nfreem)
+    real(kind=dp):: ee_elec(1:nbasis),pp_elec(1:nbasis,1:nbasis)
+    real(kind=dp):: ee_hole(1:nbasis),pp_hole(1:nbasis,1:nbasis)
     complex(kind=dpc):: cc_elec(1:nbasis),ww_elec(1:nbasis)
     complex(kind=dpc):: cc_hole(1:nbasis),ww_hole(1:nbasis)
+    real(kind=dp):: flagr,flagd
     !integer          :: icenter_index
     
     call Get_init_WFstat(init_elec_K,init_elec_band,init_elec_WF)
     call Get_init_WFstat(init_hole_K,init_hole_band,init_hole_WF)
+    !得到init_elec_WF和init_hole_WF
     
+    !得到激子在局域基矢下的初始状态
     cc_elec=  cmplx_0
     cc_hole=  cmplx_0
-    
-    icenter_elec=(Rcenter(3)-1)*na2site*na1site*num_wann+&
-                (Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_elec_WF
-    icenter_hole=(Rcenter(3)-1)*na2site*na1site*num_wann+&
-                (Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_hole_WF
-                
-    cc_elec(icenter_elec)=1.0d0
-    cc_hole(icenter_hole)=1.0d0
+    n_elec =  0.0d0
+    n_hole =  0.0d0
+    n_elec(init_elec_WF,Rcenter(1),Rcenter(2)) = 1.0
+    n_hole(init_hole_WF,Rcenter(1),Rcenter(2)) = 1.0
+    index_elec=(Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_elec_WF
+    index_hole=(Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_hole_WF   
+    cc_elec(index_elec)=1.0d0
+    cc_hole(index_hole)=1.0d0
     !call Coulomb(Relec,elec_WF,Rhole,hole_WF,E_ehExtion)
     
-    call calculate_eigen_energy_state(xx,ee,pp)
-    call Add_Coulomb(Rcenter,init_elec_WF,Rcenter,init_hole_WF,ee)
-    call convert_diabatic_adiabatic(pp,cc_elec,ww_elec)
-    call convert_diabatic_adiabatic(pp,cc_hole,ww_hole)
-    call Get_surface(icenter_elec,isurface_elec)
-    call Get_surface(icenter_hole,isurface_hole)
+    !call set_H_without_Coulomb(xx)
+    !call set_H_with_Coulomb(n_elec,n_hole)
+    !!求解体系的电子和空穴在库伦相互作用下的哈密顿量并对角化
+    call calculate_eigen_energy_state(xx,n_elec,n_hole)
+    !call calculate_eigen_energy_state(h_hole,ee_hole,pp_hole)
+    !call Add_Coulomb(Rcenter,init_elec_WF,Rcenter,init_hole_WF,ee)
+    !将电子和空穴在local基矢下的表达变换到能量表象下
+    call convert_diabatic_adiabatic(pp_elec,cc_elec,ww_elec)
+    call convert_diabatic_adiabatic(pp_hole,cc_hole,ww_hole)
+    !得到电子和空穴初始的势能面
+    call Get_surface(index_elec,isurface_elec,pp_elec)
+    call Get_surface(index_hole,isurface_hole,pp_hole)
     
     contains
-    subroutine Get_surface(icenter,isurface)
+    subroutine Get_surface(icenter,isurface,pp)
       implicit none
       integer ::  icenter,isurface
+      real(kind=dp)::pp(nbasis,nbasis)
       
       call random_number(flagr)
       flagd=0.0d0
@@ -145,24 +157,25 @@ module sh_dynamic
   != ref: http://en.wikipedia.org/wiki/runge_kutta_methods               =!
   !=======================================================================!
 
-  subroutine rk4_nuclei(pp,xx,vv,tt)
+  subroutine rk4_nuclei(xx,vv,pp_elec,pp_hole,dd_elec,dd_hole,tt)
     implicit none
 
-    real(kind=dp):: pp(1:nbasis,1:nbasis),tt
-    real(kind=dp):: xx(1:nfreem)
-    real(kind=dp):: vv(1:nfreem)
+    real(kind=dp):: xx(1:nfreem),vv(1:nfreem)
+    real(kind=dp):: pp_elec(1:nbasis,1:nbasis),pp_hole(1:nbasis,1:nbasis)
+    real(kind=dp):: dd_elec(1:nbasis,1:nbasis,1:nfreem),dd_hole(1:nbasis,1:nbasis,nfreem)
+    real(kind=dp):: tt
     real(kind=dp):: tt2,tt6
     real(kind=dp):: xx0(1:nfreem),dx1(1:nfreem),dx2(1:nfreem),dx3(1:nfreem),dx4(1:nfreem)
     real(kind=dp):: vv0(1:nfreem),dv1(1:nfreem),dv2(1:nfreem),dv3(1:nfreem),dv4(1:nfreem)
 
     tt2=tt/2.0d0; tt6=tt/6.0d0
-    call derivs_nuclei(pp,xx,vv,dx1,dv1)
+    call derivs_nuclei(dd_elec,dd_hole,xx,vv,dx1,dv1)
     xx0=xx+tt2*dx1; vv0=vv+tt2*dv1
-    call derivs_nuclei(pp,xx0,vv0,dx2,dv2)
+    call derivs_nuclei(dd_elec,dd_hole,xx0,vv0,dx2,dv2)
     xx0=xx+tt2*dx2; vv0=vv+tt2*dv2
-    call derivs_nuclei(pp,xx0,vv0,dx3,dv3)
+    call derivs_nuclei(dd_elec,dd_hole,xx0,vv0,dx3,dv3)
     xx0=xx+tt*dx3; vv0=vv+tt*dv3
-    call derivs_nuclei(pp,xx0,vv0,dx4,dv4)
+    call derivs_nuclei(dd_elec,dd_hole,xx0,vv0,dx4,dv4)
     xx=xx+tt6*(dx1+2.0d0*dx2+2.0d0*dx3+dx4)
     vv=vv+tt6*(dv1+2.0d0*dv2+2.0d0*dv3+dv4)
   endsubroutine
@@ -173,49 +186,67 @@ module sh_dynamic
   != ref: notebook page 630                           =!
   !====================================================!
 
-  subroutine derivs_nuclei(pp,xx,vv,dx,dv)
+  subroutine derivs_nuclei(dd_elec,dd_hole,xx,vv,dx,dv)
   implicit none
 
     !integer ibasis
-    real(kind=dp)::pp(1:nbasis,1:nbasis),xx(1:nfreem),vv(1:nfreem),dx(1:nfreem),dv(1:nfreem)
+    real(kind=dp)::dd_elec(1:nbasis,1:nbasis,nfreem),dd_hole(1:nbasis,1:nbasis,nfreem)
+    real(kind=dp)::xx(1:nfreem),vv(1:nfreem),dx(1:nfreem),dv(1:nfreem)
     real(kind=dp)::dEa_dQf
     do ifreem=1,nfreem
-      dEa_dQf=0.0
-      do ibasis=1,nbasis
-        dEa_dQf=dEa_dQf + hep(ibasis,ibasis,ifreem)*pp(ibasis,isurface_elec)**2-&
-                          hep(ibasis,ibasis,ifreem)*pp(ibasis,isurface_hole)**2
-      end do
+      dEa_dQf=dd_elec(isurface_elec,isurface_elec,ifreem)-dd_hole(isurface_hole,isurface_hole,ifreem)
+      !do ibasis=1,nbasis
+        !dEa_dQf=dEa_dQf + hep(ibasis,ibasis,ifreem)*pp(ibasis,isurface_elec)**2-&
+                          !hep(ibasis,ibasis,ifreem)*pp(ibasis,isurface_hole)**2
+      !end do
       !dv(ifreem)=(-k(ifreem)*xx(ifreem)-dEa_dpf)/mass(ifreem)-gamma*vv(ifreem)
       dv(ifreem)= -(womiga(ifreem)**2)*xx(ifreem)- dEa_dQf -gamma*vv(ifreem)
       dx(ifreem)=vv(ifreem)
     enddo
   endsubroutine derivs_nuclei
   
-  subroutine derivs_electron_diabatic(xx,cc,dc,llhole)
+  subroutine derivs_electron_diabatic(xx,cc,dc,HH)
     implicit none
 
-    integer ::jbasis
+    integer ::jbasis,m,n
     logical :: llhole
-    real(kind=dp) xx(1:nfreem)
+    real(kind=dp):: xx(1:nfreem),hh(nbasis,nbasis)
     complex(kind=dpc) cc(1:nbasis),dc(1:nbasis)
     dc(:)=(0.0,0.0)
     
     !call set_HHt(xx)
-    HHt=HH0
-    do ifreem=1,nfreem
-      HHt(:,:)=HHt(:,:)+xx(ifreem)*Hep(:,:,ifreem)
+    !HHt=HH0
+    !do ifreem=1,nfreem
+      !HHt(:,:)=HHt(:,:)+xx(ifreem)*Hep(:,:,ifreem)
+    !enddo
+    do ia2site=0,na2site-1
+      do ia1site=0,na1site-1
+        do n_wann=1,num_wann
+          ibasis=ia2site*na1site*num_wann+ia1site*num_wann+n_wann
+          dc(ibasis) = 0.0
+          do m=ia2site-1,ia2site+1
+            do n=ia1site-1,ia1site+1
+              if(m>=0 .and. m<=(na2site-1) .and. n>=0 .and. n<=(na1site-1)) then
+                do m_wann=1,num_wann
+                jbasis=m*na1site*num_wann+n*num_wann+m_wann
+                dc(ibasis)=dc(ibasis)+cc(jbasis)*HH(ibasis,jbasis)
+                enddo
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
     enddo
-	
-    do ibasis=1,nbasis
-      do jbasis=1,nbasis
-        dc(ibasis)=dc(ibasis)+cc(jbasis)*HHt(ibasis,jbasis)
-      end do
-      if(llhole) then      
-        dc(ibasis) = dc(ibasis)*(cmplx_i)/hbar_SI
-      else
-        dc(ibasis) = dc(ibasis)*(-cmplx_i)/hbar_SI
-      endif
-    enddo
+    !do ibasis=1,nbasis
+    !  do jbasis=1,nbasis
+    !    dc(ibasis)=dc(ibasis)+cc(jbasis)*HHt(ibasis,jbasis)
+    !  end do
+    !  if(llhole) then      
+    !    dc(ibasis) = dc(ibasis)*(cmplx_i)/hbar_SI
+    !  else
+    !    dc(ibasis) = dc(ibasis)*(-cmplx_i)/hbar_SI
+    !  endif
+    !enddo
   endsubroutine derivs_electron_diabatic
 
   !===========================================================!
@@ -224,23 +255,32 @@ module sh_dynamic
   != ref: http://en.wikipedia.org/wiki/runge_kutta_methods   =!
   !===========================================================!
 
-  subroutine rk4_electron_diabatic(xx,cc,tt,llhole)
+  subroutine rk4_electron_diabatic(xx,cc,nn,tt,hh)
     implicit none
 
     real(kind=dp):: tt,tt2,tt6
-    real(kind=dp):: xx(1:nfreem)
+    real(kind=dp):: xx(1:nfreem),hh(1:nbasis,1:nbasis)
     complex(kind=dpc):: cc(1:nbasis),cc0(1:nbasis),dc1(1:nbasis),&
                         dc2(1:nbasis),dc3(1:nbasis),dc4(1:nbasis)
+    real(kind=dp)::nn(num_wann,na1site,na2site)
     logical ::  llhole
     tt2=tt/2.0d0; tt6=tt/6.0d0
-    call derivs_electron_diabatic(xx,cc,dc1,llhole)
+    call derivs_electron_diabatic(xx,cc,dc1,hh)
     cc0=cc+tt2*dc1
-    call derivs_electron_diabatic(xx,cc0,dc2,llhole)
+    call derivs_electron_diabatic(xx,cc0,dc2,hh)
     cc0=cc+tt2*dc2
-    call derivs_electron_diabatic(xx,cc0,dc3,llhole)
+    call derivs_electron_diabatic(xx,cc0,dc3,hh)
     cc0=cc+tt*dc3
-    call derivs_electron_diabatic(xx,cc0,dc4,llhole)
+    call derivs_electron_diabatic(xx,cc0,dc4,hh)
     cc=cc+tt6*(dc1+2.0d0*dc2+2.0d0*dc3+dc4)
+    do ia2site=0,na2site-1
+      do ia1site=0,na1site-1
+        do n_wann=1,num_wann
+          ibasis=ia2site*na1site*num_wann+ia1site*num_wann+n_wann
+          nn(n_wann,ia1site+1,ia2site+1)=CONJG(cc(ibasis))*cc(ibasis)
+        enddo
+      enddo
+    enddo
     
   endsubroutine rk4_electron_diabatic
   
@@ -250,11 +290,10 @@ module sh_dynamic
   != ref: notebook page 631        =!
   !=================================!
 
-  subroutine calculate_hopping_probability(ww,vv,dd,tt,gg,gg1,isurface,llhole)
+  subroutine calculate_hopping_probability(ww,vv,dd,tt,gg,gg1,isurface)
     implicit none
 
     integer ::jbasis,isurface
-    logical ::llhole
     real(kind=dp):: vv(1:nfreem),dd(1:nbasis,1:nbasis,1:nfreem),&
                     gg(1:nbasis),gg1(1:nbasis),tt,sumvd
     complex(kind=dpc):: ww(1:nbasis)
@@ -267,8 +306,7 @@ module sh_dynamic
         do ifreem=1,nfreem
           sumvd=sumvd+vv(ifreem)*dd(isurface,ibasis,ifreem)
         enddo
-        !!when is the dynamic of hole ,the dijk while be dijk*(-1)
-        if(llhole) sumvd = -sumvd
+        !if(llhole) sumvd = -sumvd
         
         gg(ibasis)=2.0d0*tt*real(conjg(ww(isurface))*ww(ibasis))*&
                     sumvd/real(conjg(ww(isurface))*ww(isurface))
@@ -286,20 +324,14 @@ module sh_dynamic
   != ref: notebook page 635  =!
   !===========================!
   
-  subroutine calculate_sumg(sumg0,sumg1,w0,w,isurface,minde,llhole)
+  subroutine calculate_sumg(sumg0,e0,w0,w,isurface,minde)
     implicit none
-      real(kind=dp)::sumg0,sumg1,minde
-      logical :: llhole
+      real(kind=dp)::sumg0,minde
       integer :: isurface
       complex(kind=dpc) :: w0(nbasis),w(nbasis)
+      real(kind=dp) :: e0(nbasis)
       
-      sumg0=(abs(w0(isurface))**2-abs(w(isurface))**2)/abs(w0(isurface))**2
-      if(llhole) then
-        sumg1=sum(g1_hole)
-      else 
-        sumg1=sum(g1_elec)
-      endif
-      
+      sumg0=(abs(w0(isurface))**2-abs(w(isurface))**2)/abs(w0(isurface))**2      
       if(isurface == 1) then
         minde= e0(isurface+1)-e0(isurface)
       elseif(isurface == nbasis) then
@@ -308,9 +340,7 @@ module sh_dynamic
         minde=(e0(isurface+1)-e0(isurface))
       else
         minde= e0(isurface)-e0(isurface-1)
-      endif    
-      if(llhole) minde = -minde
-      
+      endif          
   end subroutine calculate_sumg
   
   subroutine calculate_g(isurface,e0,sumg0,g1,g)
@@ -334,7 +364,7 @@ module sh_dynamic
   end subroutine calculate_g
   
   subroutine nonadiabatic_transition(ee,pp,dd,isurface,gg,ww,vv,cc,llhole)
-  implicit none
+    implicit none
 
     !integer ibasis,jbasis
     integer :: isurface
@@ -359,7 +389,7 @@ module sh_dynamic
             sumvd=sumvd+vv(ifreem)*dd(isurface,ibasis,ifreem)
             sumdd=sumdd+dd(isurface,ibasis,ifreem)**2
           enddo
-          if(llhole) sumvd = - sumvd
+          !if(llhole) sumvd = - sumvd
           
           !flagd=1.0d0+2.0d0*(ee(isurface)-ee(ibasis))*sumdd/mass/sumvd**2
           if(llhole) then
@@ -388,12 +418,12 @@ module sh_dynamic
   != ref: notebook page 462 and 638              =!
   !===============================================!
 
-  subroutine add_bath_effect(ee,dd,pp,tt,xx,vv)
+  subroutine add_bath_effect(dd_elec,pp_elec,dd_hole,pp_hole,tt,xx,vv)
   implicit none
 
-    integer ik1site,ik2site
-    real(kind=dp):: ee(1:nbasis),dd(1:nbasis,1:nbasis,1:nfreem),&
-                    pp(1:nbasis,1:nbasis),tt,xx(1:nfreem),vv(1:nfreem)
+    integer ik1site,ik2site,m,n
+    real(kind=dp):: dd_elec(1:nbasis,1:nbasis,1:nfreem),dd_hole(1:nbasis,1:nbasis,1:nfreem),&
+                    pp_elec(1:nbasis,1:nbasis),pp_hole(1:nbasis,1:nbasis),tt,xx(1:nfreem),vv(1:nfreem)
     real(kind=dp):: sigmar
     real(kind=dp):: kk,r1,r2,r3,r4,z1,z2,z3,z4
     !real(kind=dp),external::gaussian_random_number_fast
@@ -406,23 +436,40 @@ module sh_dynamic
         !calculate d2Ei/dx(ifreem)2 
         if(ibasis /= isurface_elec) then
           do ik1site=1,nbasis
-            do ik2site=1,nbasis
-              kk=kk+2.0d0*dd(ibasis,isurface_elec,ifreem)*pp(ik1site,isurface_elec)*&
-                  pp(ik2site,ibasis)*hep(ik1site,ik2site,ifreem)
+            ia2site=ik1site/na1site*num_wann+1
+            ia1site=MOD(ik1site,na1site*num_wann)/num_wann + 1
+            n_wann=MOD(ik1site,na1site*num_wann)
+            !do ik2site=1,nbasis
+            do m=ia2site-1,ia2site+1
+              do n=ia1site-1,ia2site+1
+                do m_wann=1,num_wann
+                  ik2site=m*na1site*num_wann+n*num_wann+m_wann
+                  kk=kk+2.0d0*dd_elec(ibasis,isurface_elec,ifreem)*pp_elec(ik1site,isurface_elec)*&
+                  pp_elec(ik2site,ibasis)*HmnR_Tij_ep(m_wann,n_wann,n-ia1site,m-ia2site,ifreem)
+                enddo
+              enddo
             enddo
-          enddo  
+          enddo
         endif
         if(ibasis /= isurface_hole) then
           do ik1site=1,nbasis
-            do ik2site=1,nbasis
-              kk=kk-2.0d0*dd(ibasis,isurface_hole,ifreem)*pp(ik1site,isurface_hole)*&
-                  pp(ik2site,ibasis)*hep(ik1site,ik2site,ifreem)
+          ia2site=ik1site/na1site*num_wann+1
+          ia1site=MOD(ik1site,na1site*num_wann)/num_wann + 1
+          n_wann=MOD(ik1site,na1site*num_wann)
+          !do ik2site=1,nbasis
+          do m=ia2site-1,ia2site+1
+            do n=ia1site-1,ia2site+1
+              do m_wann=1,num_wann
+                ik2site=m*na1site*num_wann+n*num_wann+m_wann
+                kk=kk+2.0d0*dd_hole(ibasis,isurface_hole,ifreem)*pp_hole(ik1site,isurface_hole)*&
+                  pp_hole(ik2site,ibasis)*HmnR_Tij_ep(m_wann,n_wann,n-ia1site,m-ia2site,ifreem)
+                enddo
+              enddo
             enddo
-          enddo  
-        endif
-        
+          enddo
+        endif        
       end do
-
+      
       r1=gaussian_random_number_fast(0.0d0,sigmar)
       r2=gaussian_random_number_fast(0.0d0,sigmar)
       r3=gaussian_random_number_fast(0.0d0,sigmar)
@@ -451,7 +498,7 @@ module sh_dynamic
     call open_file(pes_name,pes_unit)
     do iaver=1,1
       do isnap=1,nsnap
-        write(pes_unit,'(999999e12.5)') dt*nstep*isnap,(pes(ibasis,isnap,iaver),ibasis=-1,nbasis)
+        write(pes_unit,'(999999e12.5)') dt*nstep*isnap,(pes_exciton(ibasis,isnap,iaver),ibasis=-1,nbasis)
       enddo
     enddo
     call close_file(pes_name,pes_unit)

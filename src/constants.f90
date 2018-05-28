@@ -11,12 +11,12 @@ module sh_constants
     au2ps = 2.418884326505d-5                   ,&
     au2amu= 5.4858d-4                           ,&
     au2ang= 5.291772108d-1                      ,&
-    kb    = 1.3806504d-23                       ,&
     sqrt3 = dsqrt(3.0d0)                        ,&
     sqrt5 = dsqrt(5.0d0)                        ,&
     sqrt7 = dsqrt(7.0d0)                        ,&
     pi    = 3.141592653589793238462643383279_dp ,&  
     hbar  = 1.05457180013d-34   
+  real(kind=dp),public :: kb
   real(kind=dp),parameter,public  ::  twopi = 2*pi
   
   complex(kind=dpc),parameter,public   :: eye=(0.0d0,1.0d0)
@@ -48,6 +48,7 @@ module sh_constants
   ! ##### CODATA 2010 ##### !
   ! #warning "SCSH INFO: Using CODATA 2010 constant values"
   real(kind=dp), parameter, public :: elem_charge_SI=1.602176565e-19_dp   ! C
+  real(kind=dp), parameter, public :: sqrt_elem_charge_SI=elem_charge_SI**2
   !! elemental charge   ->  e
   real(kind=dp), parameter, public :: elec_mass_SI=9.10938291e-31_dp      ! kg
   !! electron mass      ->  $$m_e$$
@@ -68,7 +69,7 @@ module sh_constants
   real(kind=dp), parameter, public :: bohr = bohr_angstrom_internal
   !! 4*pi*eps0
   real(kind=dp), parameter, public :: fopieps0 = 4*pi*eps0_SI
-  real(kind=dp), parameter, public :: THz2womiga = 1.0e12_dp               !f=  rad/s
+  real(kind=dp), parameter, public :: THz2womiga = 1.0e12_dp                     !f=  rad/s
   
   ! Leave the length to this value, and don't exceed in length (needed for output formatting)
   character(len=75), parameter, public :: constants_version_str1 = "-> Using CODATA 2010 constant values"
