@@ -441,7 +441,7 @@ module sh_dynamic
             n_wann=MOD(ik1site,na1site*num_wann)
             !do ik2site=1,nbasis
             do m=ia2site-1,ia2site+1
-              do n=ia1site-1,ia2site+1
+              do n=ia1site-1,ia1site+1
                 do m_wann=1,num_wann
                   ik2site=m*na1site*num_wann+n*num_wann+m_wann
                   kk=kk+2.0d0*dd_elec(ibasis,isurface_elec,ifreem)*pp_elec(ik1site,isurface_elec)*&
