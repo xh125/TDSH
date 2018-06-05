@@ -79,6 +79,12 @@ program mkPOSCAR
       ctmp = "mkdir ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                     "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
+      ctmp = "cp ./wannier/POTCAR ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
+                 "/shift_"//trim(adjustl(ctmpldQ))
+      call system(ctmp)
+      ctmp = "cp ./wannier/KPOINTS ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
+                 "/shift_"//trim(adjustl(ctmpldQ))
+      call system(ctmp)      
       ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
