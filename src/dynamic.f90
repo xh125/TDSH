@@ -436,9 +436,9 @@ module sh_dynamic
         !calculate d2Ei/dx(ifreem)2 
         if(ibasis /= isurface_elec) then
           do ik1site=1,nbasis
-            ia2site=ik1site/na1site*num_wann+1
-            ia1site=MOD(ik1site,na1site*num_wann)/num_wann + 1
-            n_wann=MOD(ik1site,na1site*num_wann)
+            ia2site=ik1site/(na1site*num_wann)+1
+            ia1site=MOD(ik1site,(na1site*num_wann))/num_wann + 1
+            n_wann=MOD(ik1site,num_wann)
             !do ik2site=1,nbasis
             do m=ia2site-1,ia2site+1
               do n=ia1site-1,ia1site+1
@@ -453,9 +453,9 @@ module sh_dynamic
         endif
         if(ibasis /= isurface_hole) then
           do ik1site=1,nbasis
-          ia2site=ik1site/na1site*num_wann+1
+          ia2site=ik1site/(na1site*num_wann)+1
           ia1site=MOD(ik1site,na1site*num_wann)/num_wann + 1
-          n_wann=MOD(ik1site,na1site*num_wann)
+          n_wann=MOD(ik1site,num_wann)
           !do ik2site=1,nbasis
           do m=ia2site-1,ia2site+1
             do n=ia1site-1,ia2site+1

@@ -68,7 +68,7 @@ module sh_hamiltonian
         enddo
       enddo        
       call close_file(Hr_name,Hr_unit)
-      HmnR_Tij_0=HmnR_Tij_0/AU2EV     !转换 为原子单位
+      !HmnR_Tij_0=HmnR_Tij_0/AU2EV     
       
       HmnR_Tij_name = "./Tij_parameter/Tij_0"
       HmnR_Tij_unit = io_file_unit()
@@ -225,7 +225,6 @@ module sh_hamiltonian
       call close_file(TiidQ_noma_name,TiidQ_noma_unit)
       
     enddo
-      HmnR_Tij_ep(:,:,:,:,:)=HmnR_Tij_ep(:,:,:,:,:)/AU2EV
     
     else       
       do imode=0,nmode
@@ -249,11 +248,12 @@ module sh_hamiltonian
         enddo
         call close_file(HmnR_Tij_name,HmnR_Tij_unit)
       end do
-      HmnR_Tij_0  = HmnR_Tij_0/AU2EV
-      HmnR_Tij_ep = HmnR_Tij_ep/AU2EV
     
     endif
   
+    !HmnR_Tij_0  = HmnR_Tij_0/AU2EV   !!转换 为原子单位
+    !HmnR_Tij_ep = HmnR_Tij_ep/AU2EV
+    
   end subroutine read_TB_parameters
   
   !!set the Tij parameter of elec and hole with out Coulomb interaction with elec and hole

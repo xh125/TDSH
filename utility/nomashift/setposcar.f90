@@ -12,8 +12,9 @@ module parameters
   integer               ::  num_atoms,num_species
   character(len=2),allocatable::  atoms_symbol(:)
   integer,allocatable         ::  atoms_species_num(:)
+  real(kind=dp),allocatable   ::  amass(:)
   integer :: ierr,itmp
-  integer :: nmode,nstep,i,j,k,m,ndQ
+  integer :: nmode,nstep,i,j,k,m  !,ndQ
   logical               :: lexist,lbsub
   
   integer :: iatomstype,iatom,imode,istep
@@ -24,8 +25,8 @@ module parameters
   real(kind=dp),allocatable::positiondQ(:,:)
   real(kind=dp),allocatable::phonovecter(:,:,:)
   
-  namelist /input/ ndQ,nstep,lbsub
-	!dQ=ndQ/10000
+  namelist /input/ dQ,nstep,lbsub,amass
+
   contains
   
   function io_file_unit() !得到一个当前未使用的unit，用于打开文件
@@ -56,56 +57,57 @@ module parameters
 end module
 
 program mkPOSCAR
-  use parameters	
+  use parameters
   implicit none
   call readPOSCAR()
   call getUserInp()
   call readVecter()
   
-  inquire(directory = '../nomashift',exist=lexist)
-  if(lexist) call system('rm -rf ../nomashift')
-  call system('mkdir ../nomashift')
-	do imode=1,nmode
+  inquire(directory = './nomashift',exist=lexist)
+  if(lexist) call system('rm -rf ./nomashift ')
+  call system('wait')
+  call system('mkdir ./nomashift')
+  do imode=1,nmode
     ! mkdir noma_imode
     write(ctmpmode,*) imode
-    ctmp = "mkdir ../nomashift/noma_"// trim(adjustl(ctmpmode))
+    ctmp = "mkdir ./nomashift/noma_"// trim(adjustl(ctmpmode))
     call system(ctmp)
+    write(*,*) ctmp
     do istep=1,2*nstep+1
       ldQ=(istep-1)*dQ-nstep*dQ
       write(ctmpldQ,"(F8.4)") ldQ
-      ctmp = "mkdir ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+      ctmp = "mkdir ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                     "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
-      ctmp = "cp ../wannierinput/* ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+      ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
-      call Write_nomal_shift_POSCAR(imode,istep)
-      
-      ctmp = "cd ../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+      call Write_nomal_shift_POSCAR(imode,istep)      
+      ctmp = "cd ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
             "/shift_"//trim(adjustl(ctmpldQ))//";bsub < vasp.bsub;cd -"
       if(lbsub) then
         if(istep /= nstep+1) then
           call system(ctmp)
         else
-          ctmp = "cp ../wannier/wannier90_hr.dat "//"../nomashift/noma_"// &
+          ctmp = "cp ./wannier/wannier90_hr.dat "//"./nomashift/noma_"// &
           trim(adjustl(ctmpmode))//"/shift_"//trim(adjustl(ctmpldQ))
           call system(ctmp)
         endif
       else
-        write(*,*) ctmp
+        write(*,*) "NOT calculate nomashift wannier !"
       endif
       
     enddo
   enddo
   
   call freememmery()
-end program	
-	
+end program
+  
   subroutine readPOSCAR()
     use parameters
     implicit none         
     
-    poscar_name  = 'POSCAR'
+    poscar_name  = './phono-gamma/POSCAR'
     poscar_unit  = io_file_unit()
     call open_file(poscar_name,poscar_unit)
     read(poscar_unit,*) poscarcomment         !line 1
@@ -137,16 +139,15 @@ end program
     read(poscar_unit,FMT=*,iostat=ierr) (atoms_species_num(i),i=1,num_species)
     num_atoms = sum(atoms_species_num)
     nmode = 3 * num_atoms
+    allocate(amass(num_species))
     allocate(positiondQ0(3,num_atoms))
     allocate(positiondQ(3,num_atoms))
     !line 8
     read(poscar_unit,*) Charac
     !line 9-~
     do iatom=1,num_atoms
-      !read(12,"(3F16.10)") ( positiondQ0(j,iatom),j=1,3)
-			read(poscar_unit,*) positiondQ0(:,iatom)
-		enddo
-    
+      read(poscar_unit,*) positiondQ0(:,iatom)
+    enddo
     call close_file(poscar_name,poscar_unit)
   
   end subroutine readPOSCAR
@@ -154,8 +155,8 @@ end program
   subroutine Write_nomal_shift_POSCAR(iimode,iistep)
     use parameters
     implicit none
-    integer,intent(in)::iimode,iistep       		
-    poscar_name = "../nomashift/noma_"// trim(adjustl(ctmpmode))//&
+    integer,intent(in)::iimode,iistep
+    poscar_name = "./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                   "/shift_"//trim(adjustl(ctmpldQ))//"/POSCAR"
     poscar_unit = io_file_unit()     
     call open_file(poscar_name,poscar_unit)
@@ -186,83 +187,88 @@ end program
       enddo
       call close_file(poscar_name,poscar_unit)
     else 
-		write(poscar_unit,*) "Direct"
+    write(poscar_unit,*) "Direct"
       call close_file(poscar_name,poscar_unit)
       write(*,*) "POSCAR error!! need Caracter POSCAR"
-  		stop
-    endif		        
+      stop
+    endif       
   
   end subroutine Write_nomal_shift_POSCAR
   
-	subroutine getUserInp()
+  subroutine getUserInp()
     use parameters
-		implicit none
-		integer               ::inp_unit
+    implicit none
+    integer               ::inp_unit
     character(len=maxlen) ::inp_name
-		! set default values for namelist parameters
-		nstep = 5
-		ndQ   = 20
-		dQ    = 0.0020
+    ! set default values for namelist parameters
+    nstep = 5
+    dQ    = 0.0020
     lbsub = .False.
-		!
-		inp_unit  = io_file_unit()
+    amass(:) = 1.0
+    !
+    inp_unit  = io_file_unit()
     inp_name  = 'shiftinp'
     !call open_file(inp_name,inp_unit)
     open(unit=inp_unit,file=inp_name,status='unknown',action='read',iostat=ierr)
-		if(ierr/=0) then
-			write(*,*) "I/O error with input file : 'shiftinp'"
-			stop
-		endif
-		read(inp_unit,nml=input)
-		call close_file(inp_name,inp_unit)		
-		dQ=real(ndQ)/real(10000)		
-		allocate(phonovecter(3,num_atoms,nmode))
-		!allocate(Symatom(num_atomsstype))
-		!allocate(atomstype(num_atomsstype))
-		!allocate(positiondQ0(3,num_atoms))
-		!allocate(positiondQ(3,num_atoms))
-		
-	end subroutine getUserInp
-	
-	subroutine readVecter()
+    if(ierr/=0) then
+      write(*,*) "I/O error with input file : 'shiftinp'"
+      stop
+    endif
+    read(inp_unit,nml=input)
+    call close_file(inp_name,inp_unit)      
+    allocate(phonovecter(3,num_atoms,nmode))
+    
+  end subroutine getUserInp
+  
+  subroutine readVecter()
     use parameters
-		implicit none
+    implicit none
     character(len=maxlen) :: wvecter_name
     integer               :: wvecter_unit
-    inquire(file='wvecter.txt',exist=lexist)
+    inquire(file='./phono-gamma/wvecter.txt',exist=lexist)
     
     if(.NOT. lexist) then
+      call system('cd ./phono-gamma')
       call system('grep -A200 "Eigenvectors and eigenvalues of the dynamical matrix" OUTCAR>wvecter.txt')
       call system('wait')
+      call system('cd -')
     endif
     
     wvecter_unit = io_file_unit()
-    wvecter_name = "wvecter.txt"
+    wvecter_name = "./phono-gamma/wvecter.txt"
     call open_file(wvecter_name,wvecter_unit)
-		!read the first 3 lines.
-		read(wvecter_unit,"(1X,//,A50)") comment
+    !read the first 3 lines.
+    read(wvecter_unit,"(1X,//,A50)") comment
 
-		do imode=1,nmode
-			read(wvecter_unit,"(1X,//,A50)") comment
-			do iatom=1,num_atoms
-				read(wvecter_unit,*) positiondQ0(:,iatom),phonovecter(:,iatom,imode)
-			end do
-		end do
+    do imode=1,nmode
+      read(wvecter_unit,"(1X,//,A50)") comment
+      !do iatom=1,num_atoms
+        !read(wvecter_unit,*) positiondQ0(:,iatom),phonovecter(:,iatom,imode)
+      !end do
+      iatom = 0 
+      do i=1,num_species
+        do j=1,atoms_species_num(i)
+          iatom = iatom + 1
+          read(wvecter_unit,*) positiondQ0(:,iatom),phonovecter(:,iatom,imode)
+          phonovecter(:,iatom,imode) = phonovecter(:,iatom,imode)/dsqrt(amass(i))
+        enddo
+      enddo
+    end do
+        
+    call close_file(wvecter_name,wvecter_unit)
+  
+  end subroutine readVecter      
     
-		call close_file(wvecter_name,wvecter_unit)
-	
-	end subroutine readVecter			
-		
-	subroutine freememmery()
+  subroutine freememmery()
     use parameters
-		implicit none
-		
-		deallocate(phonovecter)
-		deallocate(atoms_symbol,atoms_species_num)
-		deallocate(positiondQ0)
-		deallocate(positiondQ)
+    implicit none
     
-	end subroutine freememmery    
+    deallocate(phonovecter)
+    deallocate(atoms_symbol,atoms_species_num)
+    deallocate(positiondQ0)
+    deallocate(positiondQ)
+    
+  end subroutine freememmery    
   
   subroutine open_file(file_name,file_unit)
     implicit none

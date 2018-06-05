@@ -1,5 +1,5 @@
 !=====================================================================================================!
-!= this program is used to simulate exciton transport with the self-consistent surface hopping method=!
+!= this program is --*used to simulate exciton transport with the self-consistent surface hopping method=!
 !=====================================================================================================!
 != of 2dimensional materials stack with local and unlocal electron-phonon couplings and              =!
 !=====================================================================================================!
