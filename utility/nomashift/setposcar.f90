@@ -88,6 +88,9 @@ program mkPOSCAR
       ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
+      ctmp = 'sed  -i “8s/22/'//'-'//trim(adjustl(ctmpmode))//'-'//trim(adjustl(ctmpldQ))//'/g ” '// &
+      './nomashift/noma_'// trim(adjustl(ctmpmode))//'/shift_'//trim(adjustl(ctmpldQ))//'/vasp.bsub'
+      call system(ctmp)
       call Write_nomal_shift_POSCAR(imode,istep)      
       ctmp = "cd ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
             "/shift_"//trim(adjustl(ctmpldQ))//";bsub < vasp.bsub;cd -"
