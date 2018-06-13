@@ -20,8 +20,9 @@ module sh_dynamic
     do ifreem=1,nfreem
       !xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/k))
       !vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/mass))
-      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(k_B_SI*temp)/(womiga(ifreem)))
-      vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(k_B_SI*temp*temp))
+      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/womiga(ifreem) )
+      vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp) )
+      !in the unit of au
     enddo
     
   end subroutine init_coordinate_velocity
@@ -211,14 +212,9 @@ module sh_dynamic
     integer ::jbasis,m,n
     logical :: llhole
     real(kind=dp):: xx(1:nfreem),hh(nbasis,nbasis)
-    complex(kind=dpc) cc(1:nbasis),dc(1:nbasis)
+    complex(kind=dpc)::cc(1:nbasis),dc(1:nbasis)
     dc(:)=(0.0,0.0)
     
-    !call set_HHt(xx)
-    !HHt=HH0
-    !do ifreem=1,nfreem
-      !HHt(:,:)=HHt(:,:)+xx(ifreem)*Hep(:,:,ifreem)
-    !enddo
     do ia2site=0,na2site-1
       do ia1site=0,na1site-1
         do n_wann=1,num_wann
@@ -237,16 +233,7 @@ module sh_dynamic
         enddo
       enddo
     enddo
-    !do ibasis=1,nbasis
-    !  do jbasis=1,nbasis
-    !    dc(ibasis)=dc(ibasis)+cc(jbasis)*HHt(ibasis,jbasis)
-    !  end do
-    !  if(llhole) then      
-    !    dc(ibasis) = dc(ibasis)*(cmplx_i)/hbar_SI
-    !  else
-    !    dc(ibasis) = dc(ibasis)*(-cmplx_i)/hbar_SI
-    !  endif
-    !enddo
+
   endsubroutine derivs_electron_diabatic
 
   !===========================================================!
@@ -421,52 +408,66 @@ module sh_dynamic
   subroutine add_bath_effect(dd_elec,pp_elec,dd_hole,pp_hole,tt,xx,vv)
   implicit none
 
-    integer ik1site,ik2site,m,n
-    real(kind=dp):: dd_elec(1:nbasis,1:nbasis,1:nfreem),dd_hole(1:nbasis,1:nbasis,1:nfreem),&
+    integer       :: ik1site,ik2site,m,n
+    real(kind=dp) :: dd_elec(1:nbasis,1:nbasis,1:nfreem),dd_hole(1:nbasis,1:nbasis,1:nfreem),&
                     pp_elec(1:nbasis,1:nbasis),pp_hole(1:nbasis,1:nbasis),tt,xx(1:nfreem),vv(1:nfreem)
     real(kind=dp):: sigmar
     real(kind=dp):: kk,r1,r2,r3,r4,z1,z2,z3,z4
-    !real(kind=dp),external::gaussian_random_number_fast
 
-    !sigmar=dsqrt(2.0d0*kb*temp*gamma*tt/mass) !gamma -> 1/t
-    sigmar=dsqrt(2.0d0*kb*temp*gamma*tt)  !dangwei yu dp/dt   (mv) yiyang.
+    !sigmar=dsqrt(2.0d0*kb*temp*gamma*tt/mass) !gamma -> 1/t   dangwei v-> dx/dt
+    sigmar=dsqrt(2.0d0*kb*temp*gamma*tt)  !dangwei yu dQ/dt   (mv) yiyang.
     do ifreem=1,nfreem
       kk=womiga(ifreem)**2
       do ibasis=1,nbasis
-        !calculate d2Ei/dx(ifreem)2 
+        !calculate d2Ei/dx(ifreem)**2 
         if(ibasis /= isurface_elec) then
-          do ik1site=1,nbasis
-            ia2site=ik1site/(na1site*num_wann)+1
-            ia1site=MOD(ik1site,(na1site*num_wann))/num_wann + 1
-            n_wann=MOD(ik1site,num_wann)
+          !do ik1site=1,nbasis
+            !ia2site=ik1site/(na1site*num_wann)+1
+            !ia1site=MOD(ik1site,(na1site*num_wann))/num_wann + 1
+            !n_wann=MOD(ik1site,num_wann)
             !do ik2site=1,nbasis
+          do ia2site=0,na2site-1
+          do ia1site=0,na1site-1
+          do n_wann=1,num_wann
+            ik1site = ia2site*na1site*num_wann+ia1site*num_wann+n_wann
             do m=ia2site-1,ia2site+1
               do n=ia1site-1,ia1site+1
+                if(m>=0 .and. m<= na2site-1 .and. n>=0 .and. n<= na1site-1) then
                 do m_wann=1,num_wann
+                  if(adj_Tij(n_wann,m_wann,n-ia1site,m-ia2site)) then
                   ik2site=m*na1site*num_wann+n*num_wann+m_wann
                   kk=kk+2.0d0*dd_elec(ibasis,isurface_elec,ifreem)*pp_elec(ik1site,isurface_elec)*&
                   pp_elec(ik2site,ibasis)*HmnR_Tij_ep(m_wann,n_wann,n-ia1site,m-ia2site,ifreem)
+                  endif
                 enddo
+                endif
               enddo
             enddo
+          enddo
+          enddo
           enddo
         endif
         if(ibasis /= isurface_hole) then
-          do ik1site=1,nbasis
-          ia2site=ik1site/(na1site*num_wann)+1
-          ia1site=MOD(ik1site,na1site*num_wann)/num_wann + 1
-          n_wann=MOD(ik1site,num_wann)
-          !do ik2site=1,nbasis
-          do m=ia2site-1,ia2site+1
-            do n=ia1site-1,ia2site+1
-              do m_wann=1,num_wann
-                ik2site=m*na1site*num_wann+n*num_wann+m_wann
-                kk=kk+2.0d0*dd_hole(ibasis,isurface_hole,ifreem)*pp_hole(ik1site,isurface_hole)*&
+          do ia2site=0,na2site-1
+          do ia1site=0,na1site-1
+          do n_wann=1,num_wann
+            ik1site = ia2site*na1site*num_wann+ia1site*num_wann+n_wann
+            do m=ia2site-1,ia2site+1
+              do n=ia1site-1,ia1site+1
+                if(m>=0 .and. m<= na2site-1 .and. n>=0 .and. n<= na1site-1) then
+                do m_wann=1,num_wann
+                  if(adj_Tij(n_wann,m_wann,n-ia1site,m-ia2site)) then
+                  ik2site=m*na1site*num_wann+n*num_wann+m_wann
+                  kk=kk+2.0d0*dd_hole(ibasis,isurface_hole,ifreem)*pp_hole(ik1site,isurface_hole)*&
                   pp_hole(ik2site,ibasis)*HmnR_Tij_ep(m_wann,n_wann,n-ia1site,m-ia2site,ifreem)
+                  endif
                 enddo
+                endif
               enddo
             enddo
           enddo
+          enddo
+          enddo          
         endif        
       end do
       
@@ -474,13 +475,12 @@ module sh_dynamic
       r2=gaussian_random_number_fast(0.0d0,sigmar)
       r3=gaussian_random_number_fast(0.0d0,sigmar)
       r4=gaussian_random_number_fast(0.0d0,sigmar)
-      z1=r1                                                     !dp/dt
-      z2=tt*(r1/2.0d0+r2/sqrt3/2.0d0)                           !dp
-      z3=tt**2*(r1/6.0d0+r2*sqrt3/12.0d0+r3/sqrt5/12.0d0)       !dpdt
-      z4=tt**3*(r1/24.0d0+r2*sqrt3/40.0d0+r3/sqrt5/24.0d0+r4/sqrt7/120.0d0) !dp*(dt**2)
-      xx(ifreem)=xx(ifreem)+(z2-gamma*z3+(-womiga(ifreem)**2+gamma**2)*z4)
-      vv(ifreem)=vv(ifreem)+(z1-gamma*z2+(-womiga(ifreem)**2+gamma**2)*z3+&
-                  (2.0d0*gamma*(womiga(ifreem)**2) - gamma**3 )*z4 )
+      z1=r1                                                     !dQ/dt
+      z2=tt*(r1/2.0d0+r2/sqrt3/2.0d0)                           !dQ
+      z3=tt**2*(r1/6.0d0+r2*sqrt3/12.0d0+r3/sqrt5/12.0d0)       !dQdt
+      z4=tt**3*(r1/24.0d0+r2*sqrt3/40.0d0+r3/sqrt5/24.0d0+r4/sqrt7/120.0d0) !dQ*(dt**2)
+      xx(ifreem)=xx(ifreem)+(z2-gamma*z3+(-kk+gamma**2)*z4)
+      vv(ifreem)=vv(ifreem)+(z1-gamma*z2+(-kk+gamma**2)*z3+(2.0d0*gamma*kk-gamma**3)*z4)
     
     enddo
     
@@ -493,110 +493,115 @@ module sh_dynamic
     character(len=maxlen) ::  inf_name,msd_name,msds_name,ipr_name
     integer               ::  inf_unit,msd_unit,msds_unit,ipr_unit
     
+    inquire(directory = './result',exist=lexist)
+    !if(lexist) call system('rm -rf ./nomashift ')
+    !call system('wait')
+    if (.not. lexist) call system('mkdir ./result')
+    
     pes_unit = io_file_unit()
-    pes_name = 'pes.out'
+    pes_name = './result/pes.out'
     call open_file(pes_name,pes_unit)
     do iaver=1,1
       do isnap=1,nsnap
-        write(pes_unit,'(999999e12.5)') dt*nstep*isnap,(pes_exciton(ibasis,isnap,iaver),ibasis=-1,nbasis)
+        write(pes_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(pes_exciton(ibasis,isnap,iaver),ibasis=-1,nbasis)
       enddo
     enddo
     call close_file(pes_name,pes_unit)
    
     inf_unit = io_file_unit()
-    inf_name = 'inf_elec.out'
+    inf_name = './result/inf_elec.out'
     call open_file(inf_name,inf_unit)
     do iaver=1,1
       do isnap=1,nsnap
-        write(inf_unit,'(999999e12.5)') dt*nstep*isnap,(inf_elec(ibasis,isnap,iaver),ibasis=1,3)
+        write(inf_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(inf_elec(ibasis,isnap,iaver),ibasis=1,3)
       enddo
     enddo
     call close_file(inf_name,inf_unit)
     
     inf_unit = io_file_unit()
-    inf_name = 'inf_hole.out'
+    inf_name = './result/inf_hole.out'
     call open_file(inf_name,inf_unit)
     do iaver=1,1
       do isnap=1,nsnap
-        write(inf_unit,'(999999e12.5)') dt*nstep*isnap,(inf_hole(ibasis,isnap,iaver),ibasis=1,3)
+        write(inf_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(inf_hole(ibasis,isnap,iaver),ibasis=1,3)
       enddo
     enddo
     call close_file(inf_name,inf_unit)
     
     csit_unit = io_file_unit()
-    csit_name = 'csit_elec.out'
+    csit_name = './result/csit_elec.out'
     call open_file(csit_name,csit_unit)
     do isnap=1,nsnap
-      write(csit_unit,'(999999e12.5)') dt*nstep*isnap,(csit_elec(ibasis,isnap),ibasis=1,nbasis)
+      write(csit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(csit_elec(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(csit_name,csit_unit)
     
     csit_unit = io_file_unit()
-    csit_name = 'csit_hole.out'
+    csit_name = './result/csit_hole.out'
     call open_file(csit_name,csit_unit)
     do isnap=1,nsnap
-      write(csit_unit,'(999999e12.5)') dt*nstep*isnap,(csit_hole(ibasis,isnap),ibasis=1,nbasis)
+      write(csit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(csit_hole(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(csit_name,csit_unit)
     
     wsit_unit = io_file_unit()
-    wsit_name = 'wsit_elec.out'
+    wsit_name = './result/wsit_elec.out'
     call open_file(wsit_name,wsit_unit)
     do isnap=1,nsnap
-      write(wsit_unit,'(999999e12.5)') dt*nstep*isnap,(wsit_elec(ibasis,isnap),ibasis=1,nbasis)
+      write(wsit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(wsit_elec(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(wsit_name,wsit_unit)
 
     wsit_unit = io_file_unit()
-    wsit_name = 'wsit_hole.out'
+    wsit_name = './result/wsit_hole.out'
     call open_file(wsit_name,wsit_unit)
     do isnap=1,nsnap
-      write(wsit_unit,'(999999e12.5)') dt*nstep*isnap,(wsit_hole(ibasis,isnap),ibasis=1,nbasis)
+      write(wsit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(wsit_hole(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(wsit_name,wsit_unit)
     
     psit_unit = io_file_unit()
-    psit_name = 'psit_elec.out'
+    psit_name = './result/psit_elec.out'
     call open_file(psit_name,psit_unit)
     do isnap=1,nsnap
-      write(psit_unit,'(999999e12.5)') dt*nstep*isnap,(psit_elec(ibasis,isnap),ibasis=1,nbasis)
+      write(psit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(psit_elec(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(psit_name,psit_unit)
     
     psit_unit = io_file_unit()
-    psit_name = 'psit_hole.out'
+    psit_name = './result/psit_hole.out'
     call open_file(psit_name,psit_unit)
     do isnap=1,nsnap
-      write(psit_unit,'(999999e12.5)') dt*nstep*isnap,(psit_hole(ibasis,isnap),ibasis=1,nbasis)
+      write(psit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(psit_hole(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(psit_name,psit_unit)
     
     xsit_unit = io_file_unit()
-    xsit_name = 'xsit.out'
+    xsit_name = './result/xsit.out'
     call open_file(xsit_name,xsit_unit)
     do isnap=1,nsnap
-      write(xsit_unit,'(999999e12.5)') dt*nstep*isnap,(xsit(ibasis,isnap),ibasis=1,nbasis)
+      write(xsit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(xsit(ibasis,isnap),ibasis=1,nbasis)
     enddo
     call close_file(xsit_name,xsit_unit)
     
     ksit_unit = io_file_unit()
-    ksit_name = 'ksit.out'
+    ksit_name = './result/ksit.out'
     call open_file(ksit_name,ksit_unit)
     do isnap=1,nsnap
-      write(ksit_unit,'(999999e12.5)') dt*nstep*isnap,(ksit(ibasis,isnap),ibasis=1,nbasis),kb*temp/2*au2ev
+      write(ksit_unit,'(999999e12.5)') dt*nstep*isnap*Au2fs,(ksit(ibasis,isnap),ibasis=1,nbasis),kb*temp/2*au2ev
     enddo
     call  close_file(ksit_name,ksit_unit)
     
-    msd_unit = io_file_unit()
-    msd_name = 'msd.out'
-    call open_file(msd_name,msd_unit)
-    do isnap=1,nsnap
-      write(msd_unit,'(999999e12.5)') dt*nstep*isnap*au2fs,msd(isnap)
-    enddo
-    call close_file(msd_name,msd_unit)
+    !msd_unit = io_file_unit()
+    !msd_name = 'msd.out'
+    !call open_file(msd_name,msd_unit)
+    !do isnap=1,nsnap
+    !  write(msd_unit,'(999999e12.5)') dt*nstep*isnap*au2fs,msd(isnap)
+    !enddo
+    !call close_file(msd_name,msd_unit)
    
     ipr_unit = io_file_unit()
-    ipr_name = 'ipr_elec.out'
+    ipr_name = './result/ipr_elec.out'
     call open_file(ipr_name,ipr_unit)
     do isnap=1,nsnap
       write(ipr_unit,'(999999e12.5)') dt*nstep*isnap,ipr_elec(isnap)
@@ -604,20 +609,20 @@ module sh_dynamic
     call close_file(ipr_name,ipr_unit)
     
     ipr_unit = io_file_unit()
-    ipr_name = 'ipr_hole.out'
+    ipr_name = './result/ipr_hole.out'
     call open_file(ipr_name,ipr_unit)
     do isnap=1,nsnap
       write(ipr_unit,'(999999e12.5)') dt*nstep*isnap,ipr_hole(isnap)
     enddo
     call close_file(ipr_name,ipr_unit)
     
-    msds_unit = io_file_unit()
-    msds_name = 'msds.out'
-    call open_file(msds_name,msds_unit)
-    do isnap=1,nsnap
-      write(msds_unit,'(999999e12.5)') dt*nstep*isnap*au2fs,(msds(isnap,iaver),iaver=1,naver)
-    enddo
-    call close_file(msds_name,msds_unit)
+    !msds_unit = io_file_unit()
+    !msds_name = 'msds.out'
+    !call open_file(msds_name,msds_unit)
+    !do isnap=1,nsnap
+    !  write(msds_unit,'(999999e12.5)') dt*nstep*isnap*au2fs,(msds(isnap,iaver),iaver=1,naver)
+    !enddo
+    !call close_file(msds_name,msds_unit)
   
   end subroutine saveresult
   

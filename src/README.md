@@ -5,6 +5,9 @@
  (3) in the workspace mkdir wannier and calculate wannier Wavefunction ,
       and band project on each local WF use wannier package changed by xh
       could save file wannier90_bandproj.dat
+      need set write_xyz=.TRUE.
+      bands_num_points= 80
+      bands_plot_project=22
  (4) in the workspace mkdir wannierinput and in this directory put the wannier input file 
      (INCAR KPOINTS POTCAR wannier90.win)and bsub script
  (5) in phono-gamma directory exection ./NsPOSCAR.x with shiftinp file

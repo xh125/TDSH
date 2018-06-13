@@ -1,6 +1,5 @@
 na1site   = 5
 na2site   = 5
-na3site   = 1
 temp      = 320
 gamma     = 0.02
 dt        = 0.01
@@ -11,6 +10,8 @@ elecB     = 18
 elecK     = 100
 holeB     = 17
 holeK     = 100
-epsr      = 4.0
+epsr      = 7.24
 nshiftstep  = 5
 dtadQ     = 0.0020
+Lephfile  = .True.
+Num_occupied=14

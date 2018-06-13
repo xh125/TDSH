@@ -3,7 +3,7 @@ FCC	    =	ifort -fpp # -check all -pg -traceback
 FFLAGS      = -g -O2
 
 #scr directory
-VPATH       = src:utility/nomashifwannier
+VPATH       = ../src:../utility/nomashifwannier
 
 #MKL libraries
 MKLLIB      = -L${MKLROOT}/lib/intel64
@@ -13,8 +13,8 @@ FCCFLAG	    = -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -liomp5\
 
 PROG	    = SHexciton.x
 #SRC
-SRC      = constants.f90 io.f90 random.f90 parameters.f90 utility.f90 hamiltonian.f90 \
-           dynamic.f90 main.d90
+SRC      = constants.f90 io.f90 random.f90 utility.f90 parameters.f90 hamiltonian.f90 \
+           dynamic.f90 main.f90
 #objects
 OBJ       = $(SRC:.f90=.o)
 
@@ -28,16 +28,17 @@ OBJ       = $(SRC:.f90=.o)
 ##
 ${PROG} : ${OBJ}	
 	${FCC} -o ${PROG} ${OBJ} ${MKLINCLUDE} ${MKLLIB} ${FCCFLAG}
-	cp -f ${PROG}.x ../bin
+	cp -f ${PROG} ../bin
   
 #Compiler utility
-Nshift : setposcar.o
+Nshift.x : setposcar.o
 	${FCC} -o setposcar.o
 setposcar.o : setposcar.f90
 	${FCC} -c setposcar.f90
-  
-all:${PROG} Nshift
-  
+	cp Nshift.x ../bin
+
+all:${PROG} Nshift.x
+	  
 #make clean
 .PHONY : clean all
 clean:

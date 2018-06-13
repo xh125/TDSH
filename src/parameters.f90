@@ -31,12 +31,12 @@ module sh_parameters
   real(kind=dp),allocatable :: womiga(:)  
   !the w of nomal viboration
   real(kind=dp),allocatable,public :: HmnR_Tij_0(:,:,:,:),HmnR_Tij_ep(:,:,:,:,:)
+  logical,allocatable,public       :: adj_Tij(:,:,:,:)
   !平衡位置TB参数，以及TB参数对简正坐标的导数( 电声耦合常数 )
   real(kind=dp),allocatable,public :: HmnR_Tij_total(:,:,:,:)
   real(kind=dp),allocatable,public :: HmnR_Tij_hole(:,:,:,:),HmnR_Tij_elec(:,:,:,:)
   ! 考虑最邻近cell之间的转移积分的TB的参数以及电声相互作用对转移积分的影响，
   ! 包含局域与非局域电声相互作用后的TB参数
-  !real(kind=dp),allocatable,public :: HH0(:,:),HHt(:,:),Hep(:,:,:)
   real(kind=dp),allocatable,public :: H_hole(:,:),H_elec(:,:)
   ! 电子和空穴的TB-Hamitonian
   integer,public  ::  isurface_elec,isurface_hole    
@@ -62,7 +62,7 @@ module sh_parameters
   
   complex(kind=dpc),allocatable,public :: c_elec(:) , w_elec(:) , w0_elec(:)
   complex(kind=dpc),allocatable,public :: c_hole(:) , w_hole(:) , w0_hole(:)    
-  real(kind=dp),allocatable,public     :: n_elec(:,:,:) , n_hole(:,:,:)
+  real(kind=dp),allocatable,public     :: n_elec(:,:,:) , n_hole(:,:,:),n0_elec(:,:,:),n0_hole(:,:,:)
   !电子和空穴的占据分布
   real(kind=dp),allocatable,public :: xsit(:,:),ksit(:,:),msd(:),msds(:,:) 
   
@@ -384,19 +384,20 @@ module sh_parameters
     wvecter_name = "./phono-gamma/wvecter.txt"
     inquire(file="./phono-gamma/wvecter.txt",exist=lexist)
     if(.Not. lexist) then
+      call system('cd ./phono-gamma')
       call system('grep -A200 "Eigenvectors and eigenvalues of the dynamical matrix" OUTCAR>wvecter.txt')
+      call system('cd -')
     endif
     
     call open_file(wvecter_name,wvecter_unit)
     read(wvecter_unit,'(//,A)') ctmp
     do ifreem=1,nfreem
       read(wvecter_unit,'(A)') ctmp
-      read(wvecter_unit,'(T26,F12.7)') womiga(ifreem) !THz*twopi
+      read(wvecter_unit,'(T63,F12.7)') womiga(ifreem) !mev
       do iatom=1,num_atoms+1
         read(wvecter_unit,*) ctmp
       enddo
     enddo
-    womiga(:)=womiga(:)*THz2womiga
     
     call close_file(wvecter_name,wvecter_unit)
     
@@ -467,6 +468,7 @@ module sh_parameters
     Rcenter(2) =anint(na2site/2.0d0)
     !HmnR_Tij(m,n,ir1, ir2)
     allocate(HmnR_Tij_0(num_wann,num_wann,-1:1,-1:1))
+    allocate(adj_Tij(num_wann,num_wann,-1:1,-1:1))
     !HmnR_Tij_ep(m,n,ir1, ir2,nfreem)
     allocate(HmnR_Tij_ep(num_wann,num_wann,-1:1,-1:1,nfreem))
     allocate(HmnR_Tij_total(num_wann,num_wann,-1:1,-1:1))
@@ -488,11 +490,20 @@ module sh_parameters
     allocate(c_elec(1:nbasis),w_elec(1:nbasis),w0_elec(1:nbasis))
     allocate(c_hole(1:nbasis),w_hole(1:nbasis),w0_hole(1:nbasis))
     allocate(n_elec(num_wann,na1site,na2site),n_hole(num_wann,na1site,na2site))
+    allocate(n0_elec(num_wann,na1site,na2site),n0_hole(num_wann,na1site,na2site))
     allocate(msds(1:nsnap,1:naver),xsit(1:nbasis,1:nsnap),ksit(1:nbasis,1:nsnap),msd(1:nsnap))
     
-    gamma = gamma/Au2ps
-    !kb    = kb/Au2J
-    dt    = dt/Au2fs
+    temp          = temp/Au2k
+    gamma         = gamma/Au2ps
+    kb            = k_B_SI/Au2J*Au2k
+    dt            = dt/Au2fs
+    real_lattice  = real_lattice/Au2ang
+    a_lattice     = a_lattice/Au2ang
+    cell_volume   = cell_volume/(Au2ang)**3
+    recip_lattice = recip_lattice*Au2ang
+    womiga        = womiga/Au2mev
+    Rwann         = Rwann/Au2ang
+   
     
     !!initiali
     pes_elec  =  0.0d0

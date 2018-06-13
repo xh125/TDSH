@@ -1,11 +1,11 @@
 !=====================================================================================================!
-!= this program is --*used to simulate exciton transport with the self-consistent surface hopping method=!
+!= this program is used to simulate exciton transport with the self-consistent surface hopping method=!
 !=====================================================================================================!
 != of 2dimensional materials stack with local and unlocal electron-phonon couplings and              =!
 !=====================================================================================================!
 != elec-hole coulomb interactions and system interaction with environment by system-bath interactions=!     
 !=====================================================================================================!
-!= Last updata 2018-5.24 Version:0.2.6                                                                !   
+!= Last updata 2018-6.5 Version:0.2.7                                                                 !   
 != Developed by xiehua at department of physic, USTC;xh125@mail.ustc.edu.cn                          =!
 !=====================================================================================================!
 
@@ -29,7 +29,8 @@ program SCSH
   != preparation =!
   !===============!
 	
-  time0   =io_time()
+  time0   = io_time()
+  call cpu_time(t0)
   stdout  = io_file_unit()
   open(unit=stdout,file="SCSH.out")
   call io_date(cdate,ctime)
@@ -118,8 +119,10 @@ program SCSH
 
         Q0=Q; Vq0=Vq; E0_elec=E_elec; p0_elec=p_elec; d0_elec=d_elec; w0_elec=w_elec;w0_hole=w_hole
         E0_hole=E_hole; p0_hole=p_hole; d0_hole=d_hole
+      time2   = io_time()
+      write(stdout,"(A5,1X,I10,1X,I15)") 'Step=',istep,time2
       enddo
-
+      
       !=====================!
       != store information =!
       !=====================!
@@ -178,8 +181,8 @@ program SCSH
   wsit_hole=wsit_hole/naver
   psit_elec=psit_elec/naver
   psit_hole=psit_hole/naver
-  xsit=xsit/naver
-  ksit=ksit/naver
+  xsit=xsit/naver*Au2ang*dsqrt(au2amu)
+  ksit=ksit/naver*Au2eV
   !msd=msd/naver
   ipr_elec=ipr_elec/naver
   ipr_hole=ipr_hole/naver
@@ -190,6 +193,8 @@ program SCSH
   call saveresult()
   call cpu_time(t1)
   write(6,'(a,f10.2,a)') 'total time is',(t1-t0)/3600,'hours'
+  write(stdout,'(a,f10.2,a)') 'total time is',(t1-t0)/3600,'hours'
+  close(stdout)
 endprogram
 
 

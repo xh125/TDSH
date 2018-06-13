@@ -40,7 +40,7 @@ module sh_hamiltonian
     
     HmnR_Tij_0  = 0.0d0
     HmnR_Tij_ep = 0.0d0
-    
+    adj_Tij     = .False.
     inquire(file="./Tij_parameter/Tij_0",exist=lexist)
     if( .Not. lexist ) then
       !set HmnR_Tij
@@ -63,6 +63,9 @@ module sh_hamiltonian
             if( abs(ir1)<=1 .and. abs(ir2)<=1 ) then
               HmnR_Tij_0(m,n,ir1,ir2) = ReH
               !<m0|H|nR>
+              if(abs(ReH) >= 0.04) then
+                adj_Tij(m,n,ir1,ir2) = .TRUE.
+              endif
             end if
           enddo
         enddo
@@ -251,8 +254,8 @@ module sh_hamiltonian
     
     endif
   
-    !HmnR_Tij_0  = HmnR_Tij_0/AU2EV   !!转换 为原子单位
-    !HmnR_Tij_ep = HmnR_Tij_ep/AU2EV
+    HmnR_Tij_0  = HmnR_Tij_0/AU2EV   !!转换 为原子单位
+    HmnR_Tij_ep = HmnR_Tij_ep/AU2EV*Au2ang*dsqrt(au2amu)
     
   end subroutine read_TB_parameters
   
@@ -346,9 +349,11 @@ module sh_hamiltonian
     Relec_hole(:) = y(:)+Rwann(:,elec_WF)-Rwann(:,hole_WF)
     Reh = sqrt(Sum(Relec_hole**2))
     if(nn==iia1site .and. mm==iia2site) then
-      coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*a_lattice)
+      !coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*a_lattice)
+      coulomb = 1.0/epsr*a_lattice
     else
-      coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*Reh)
+      !coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*Reh)
+      coulomb = 1.0/epsr*Reh
     endif
   
   end function coulomb
@@ -375,90 +380,6 @@ module sh_hamiltonian
     
   end function
   
-  !subroutine set_HH0(xx)
-  !  implicit none
-  !  real(kind=dp) :: xx(nfreem)
-  !  integer :: initial1,initial2,m,n
-  !  HmnR_Tij_elec=HmnR_Tij_0
-  !  do ifreem=1,nfreem
-  !    HmnR_Tij_elec=HmnR_Tij_elec+xx(ifreem)*HmnR_Tij_ep(:,:,:,:,ifreem)
-  !  enddo
-  !  HmnR_Tij_hole=HmnR_Tij_elec
-  !  do iwann=1,num_wann
-  !    HmnR_Tij_hole(iwann,iwann,0,0)=-HmnR_Tij_hole(iwann,iwann,0,0)
-  !  enddo
-  !  !<m0|H|nR>
-  !  !<m0|
-  !    do ia2site=0,na2site-1
-  !      do ia1site=0,na1site-1
-  !        !|nR>    R=(n-ia1site,m-ia2site,l-ia3site) 使用了周期性边界条件
-  !          do m=ia2site-1,ia2site+1
-  !            do n=ia1site-1,ia1site+1
-  !              !是否使用周期性边界条件，注释if使用周期性边界，使用if可以取消周期性边界
-  !              !if (l>=0 .and. l<na3site .and. m>=0 .and. m<na2site .and. n>=0 .and. m<na1site ) then
-  !              initial1=(ia2site)*na1site*num_wann+(ia1site)*num_wann
-  !              initial2=m*na1site*num_wann+n*num_wann
-  !              ir1=n-ia1site
-  !              ir2=m-ia2site
-  !              H_elec(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann)=HmnR_Tij_elec(:,:,ir1,ir2)
-  !              H_hole(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann)=HmnR_Tij_hole(:,:,ir1,ir2)
-  !              !endif
-  !            enddo
-  !          enddo
-  !        
-  !      enddo
-  !    enddo
-  ! 
-  !  
-  !  
-  !end subroutine set_HH0
-  
-  !subroutine set_Hep()
-  !  implicit none 
-  !  integer :: initial1,initial2,l,m,n
-  !  Hep=0.0d0
-  !  !<m0|H|nR>
-  !  !<m0|
-  !  do ifreem=1,nfreem
-  !    do ia3site=0,na3site-1
-  !      do ia2site=0,na2site-1
-  !        do ia1site=0,na1site-1
-  !          !|nR>    R=(n-ia1site,m-ia2site,l-ia3site) 使用了周期性边界条件
-  !          do l=ia3site-1,ia3site+1
-  !            do m=ia2site-1,ia2site+1
-  !              do n=ia1site-1,ia1site+1
-  !                !是否使用周期性边界条件，注释if使用周期性边界，使用if可以取消周期性边界
-  !                !if (l>=0 .and. l<na3site .and. m>=0 .and. m<na2site .and. n>=0 .and. m<na1site ) then
-  !                initial1=(ia3site)*na2site*na1site*num_wann+(ia2site)*na1site*num_wann+(ia1site)*num_wann
-  !                initial2=l*na2site*na1site*num_wann+m*na1site*num_wann+n*num_wann
-  !                ir1=n-ia1site
-  !               ir2=m-ia2site
-  !                ir3=l-ia3site
-  !                Hep(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann,ifreem)&
-  !                =HmnR_Tij_ep(:,:,ir1,ir2,ir3,ifreem)
-  !                !endif
-  !              enddo
-  !            enddo
-  !          enddo
-  !        enddo
-  !      enddo
-  !    enddo 
-  !  enddo
-  !
-  !end subroutine set_Hep
-  
-  !subroutine set_HHt(xx)
-  !implicit none
-  !  real(kind=dp) xx(1:nfreem)
-  !  
-  !  HHt=HH0
-  !  do ifreem=1,nfreem
-  !    !hh(ibasis,ibasis)=hh(ibasis,ibasis)+alpha*xx(ibasis)
-  !    HHt(:,:)=HHt(:,:)+xx(ifreem)*Hep(:,:,ifreem)
-  !  enddo
-  !  
-  !
-  !end subroutine set_HHt
   
   subroutine calculate_eigen_energy_state(xx,nn_elec,nn_hole) 
     implicit none
@@ -537,15 +458,10 @@ module sh_hamiltonian
                       do m_wann=1,num_wann
                       ik2site=initial2+m_wann
                       !read <m0|H|nR>
+                      if(adj_Tij(n_wann,m_wann,n-ia1site,m-ia2site)) then
                       dd(ibasis,jbasis,ifreem) = dd(ibasis,jbasis,ifreem)+&
                       pp(ik2site,ibasis)*pp(ik1site,jbasis)*HmnR_Tij_ep(n_wann,m_wann,n-ia1site,m-ia2site,ifreem)
-                      !dEij_dQq
-                      !do ik1site=1,nbasis
-                      !do ik2site=1,nbasis
-                      !dd(ibasis,jbasis,ifreem) = dd(ibasis,jbasis,ifreem)+&
-                      !pp(ik2site,ibasis)*pp(ik1site,jbasis)*hep(ik1site,ik2site,ifreem)
-                      !end do
-                      !end do
+                      endif
                       enddo
                       endif
                     enddo
@@ -572,9 +488,9 @@ module sh_hamiltonian
   
   implicit none
 
-    integer ::jbasis
-    real(kind=dp) pp(1:nbasis,1:nbasis)
-    complex(kind=dpc) cc(1:nbasis),ww(1:nbasis)
+    integer           :: jbasis
+    real(kind=dp)     :: pp(1:nbasis,1:nbasis)
+    complex(kind=dpc) :: cc(1:nbasis),ww(1:nbasis)
 
     ww=0.0d0
     do ibasis=1,nbasis

@@ -1,21 +1,39 @@
 module sh_constants
   implicit none
   
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+!% SET PHYSICAL CONSTANTS                              %!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+!% REF: HTTP://EN.WIKIPEDIA.ORG/WIKI/ATOMIC_UNIT       %!
+!% REF: HTTP://EN.WIKIPEDIA.ORG/WIKI/ATOMIC_MASS_UNIT  %!
+!% REF: HTTP://EN.WIKIPEDIA.ORG/WIKI/PHYSICAL_CONSTANT %!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!  
   integer,parameter,public        ::  dp   = kind(1.0D0)
   integer,parameter,public        ::  dpc  = kind((1.0D0,1.0D0))
   real(kind=dp),parameter,public  ::             &
     au2cm = 2.194887656d5                       ,&
     au2ev = 2.7211d1                            ,&
-    au2j  = 4.35974417d-18                      ,&
+    au2mev= 2.7211d4                            ,&
+    au2j  = 4.35974417d-18                      
+  real(kind=dp),parameter,public  ::             &
+    au2s  = 2.418884326505d-17                  ,&
     au2fs = 2.418884326505d-2                   ,&
-    au2ps = 2.418884326505d-5                   ,&
-    au2amu= 5.4858d-4                           ,&
-    au2ang= 5.291772108d-1                      ,&
+    au2ps = 2.418884326505d-5                  
+  real(kind=dp),parameter,public  ::  au2amu= 5.485798701848d-4
+  real(kind=dp),parameter,public  ::  au2k  = 3.1577464d5 
+  real(kind=dp),parameter,public  ::  au2ang= 5.291772108d-1
+  real(kind=dp),parameter,public  ::             &  
     sqrt3 = dsqrt(3.0d0)                        ,&
     sqrt5 = dsqrt(5.0d0)                        ,&
     sqrt7 = dsqrt(7.0d0)                        ,&
     pi    = 3.141592653589793238462643383279_dp ,&  
     hbar  = 1.05457180013d-34   
+    !au2amu 原子单位质量(me)转换为相对原子质量(C12/12)
+    !the atomic mass of a carbon-12 atom is about 1.998467052 × 10−26 kg
+    !one twelfth of the mass of an unbound neutral atom of carbon-12 
+    !in its nuclear and electronic ground state and at rest has a value 
+    !of 1.660539040(20)×10−27 kg,
+    !electron mass 9.10938291(40)×10−31 kg
   real(kind=dp),public :: kb
   real(kind=dp),parameter,public  ::  twopi = 2*pi
   
@@ -47,10 +65,12 @@ module sh_constants
   ! http://physics.nist.gov/cuu/Constants/index.html
   ! ##### CODATA 2010 ##### !
   ! #warning "SCSH INFO: Using CODATA 2010 constant values"
+  real(kind=dp), parameter, public :: Avo_con_SI=6.022140857e23_dp        !mol-1
   real(kind=dp), parameter, public :: elem_charge_SI=1.602176565e-19_dp   ! C
   real(kind=dp), parameter, public :: sqrt_elem_charge_SI=elem_charge_SI**2
   !! elemental charge   ->  e
   real(kind=dp), parameter, public :: elec_mass_SI=9.10938291e-31_dp      ! kg
+  real(kind=dp), parameter, public :: amu_mass_SI =1.660539040e-27_dp     ! kg
   !! electron mass      ->  $$m_e$$
   real(kind=dp), parameter, public :: hbar_SI=1.054571726e-34_dp          ! J*s
   !! hbar               ->  $$\hbar$$
@@ -69,7 +89,7 @@ module sh_constants
   real(kind=dp), parameter, public :: bohr = bohr_angstrom_internal
   !! 4*pi*eps0
   real(kind=dp), parameter, public :: fopieps0 = 4*pi*eps0_SI
-  real(kind=dp), parameter, public :: THz2womiga = 1.0e12_dp                     !f=  rad/s
+  !real(kind=dp), parameter, public :: THz2womiga = 1.0e12_dp                     !f=  rad/s
   
   ! Leave the length to this value, and don't exceed in length (needed for output formatting)
   character(len=75), parameter, public :: constants_version_str1 = "-> Using CODATA 2010 constant values"

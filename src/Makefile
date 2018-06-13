@@ -1,46 +1,44 @@
 #compiler
-FCC = ifort # -check all -pg -traceback
+FCC	    =	ifort -fpp # -check all -pg -traceback
+FFLAGS      = -g -O2
 
 #scr directory
-#VPATH       = src:utility/nomashifwannier
+VPATH       = ../src:../utility/nomashifwannier
 
 #MKL libraries
-MKLLIB	= -L${MKLROOT}/lib/intel64
-MKLINCLUDE = -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include
-FCCFLAG	= -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -liomp5 \
-          -lmkl_blas95_lp64 -lmkl_lapack95_lp64  
+MKLLIB      = -L${MKLROOT}/lib/intel64
+MKLINCLUDE  = -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include
+FCCFLAG	    = -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -liomp5\
+              -lmkl_blas95_lp64 -lmkl_lapack95_lp64  
 
+PROG	    = SHexciton.x
 #SRC
-SRC = constants.f90 io.f90 parameters.f90 hamiltonian.f90 dynamic.f90 \
-              random.f90 utility.f90 main.f90
+SRC      = constants.f90 io.f90 random.f90 utility.f90 parameters.f90 hamiltonian.f90 \
+           dynamic.f90 main.f90
 #objects
-OBJ = $(SRC:.f90=.o)
-PROG = SHexciton.x
+OBJ       = $(SRC:.f90=.o)
+
+#-------------------------------------------------------------------------------
+# Suffix rules
+#-------------------------------------------------------------------------------
+.SUFFIXES: .o .f90
+.f90.o:
+	$(FCC) $(FFLAGS) ${MKLLIB} ${MKLINCLUDE} ${FCCFLAG} -c $<
 
 ##
-${PROG}: ${OBJ}
-	${FCC} -o ${OBJ}
-#	cp -f ${PROG}.x ../bin
-main.o : main.f90 random.o constants.o io.o parameters.o hamiltonian.o dynamic.o random.o utility.o
-	${FCC} -c main.f90
-random.o : random.f90
-	${FCC} -c random.o
-constants.o :constants.f90
-	${FCC} -c constants.f90
-sh.o : constants.o
-	${FCC} -c sh.f90 constants.o
-utility.o : sh.o constants.o
-	${FCC} -c utility.f90 sh.o constants.o
-
-	  
+${PROG} : ${OBJ}	
+	${FCC} -o ${PROG} ${OBJ} ${MKLINCLUDE} ${MKLLIB} ${FCCFLAG}
+	cp -f ${PROG} ../bin
+  
 #Compiler utility
-Nshift : setposcar.o
+Nshift.x : setposcar.o
 	${FCC} -o setposcar.o
 setposcar.o : setposcar.f90
 	${FCC} -c setposcar.f90
-  
-all:${PROG} Nshift
-  
+	cp Nshift.x ../bin
+
+all:${PROG} Nshift.x
+	  
 #make clean
 .PHONY : clean all
 clean:
