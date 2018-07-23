@@ -106,8 +106,9 @@ program mkPOSCAR
       ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
-      ctmp = 'sed  -i “8s/wannier/'//'-'//trim(adjustl(ctmpmode))//'-'//trim(adjustl(ctmpldQ))//'/g ” '// &
+      ctmp = 'sed  -i "8s/wannier/'//trim(adjustl(ctmpmode))//'_'//trim(adjustl(ctmpldQ))//'/g" '// &
       './nomashift/noma_'// trim(adjustl(ctmpmode))//'/shift_'//trim(adjustl(ctmpldQ))//'/vasp.bsub'
+      write(*,*) ctmp
       call system(ctmp)
       call Write_nomal_shift_POSCAR(imode,istep)      
       ctmp = "cd ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
@@ -257,7 +258,7 @@ end program
       itmp = (num_atoms+3)*num_atoms*3+50
       write(ctmp,*) itmp
       ctmp ='grep -A'//trim(adjustl(ctmp))//&
-            ' "dynamical matrix" ./phonon-gamma/OUTCAR>./phono-gamma/wvecter.txt'
+            ' "dynamical matrix" ./phonon-gamma/OUTCAR > ./phonon-gamma/wvecter.txt'
       write(*,*) ctmp
       call system(ctmp)
       !call system('cd ./phono-gamma')
