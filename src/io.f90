@@ -1,17 +1,15 @@
 module sh_io
   !! Module to handle operations related to file input and output.
-  
   use sh_constants,only : dp
-  
   implicit none
   
   integer, public, save           :: stdout
   !! Unit on which stdout is written
   integer, parameter, public      :: maxlen = 120  
   !! Max column width of input file
-  integer                            :: ierr
-  character(len=maxlen)              :: msg
-  character(len=maxlen)              :: home_dir
+  integer                         :: ierr
+  character(len=maxlen)           :: msg
+  character(len=maxlen)           :: home_dir
   
   type timing_data
     !! Data about each stopwatch - for timing routines
@@ -33,12 +31,11 @@ module sh_io
   !! Number of active stopwatches
   
 contains
-  !=====================================
-    subroutine io_stopwatch(tag,mode)
+
+  subroutine io_stopwatch(tag,mode)
   !=====================================
   !! Stopwatch to time parts of the code
-  !=====================================
-  
+  !=====================================  
   implicit none
 
     character(len=*), intent(in) :: tag
@@ -154,13 +151,11 @@ contains
 
   end subroutine io_date
   
-  !===========================================================
+
   function io_time()
-  !===========================================================
-  !                                                          
+  !===========================================================                                                        
   !! Returns elapsed CPU time in seconds since its first call.
-  !! Uses standard f90 call                                  
-  !                                                           
+  !! Uses standard f90 call                                                                                           
   !===========================================================
     use sh_constants, only : dp
     implicit none
@@ -185,15 +180,13 @@ contains
     return
   end function io_time
 
-  !===========================================
+
   function io_file_unit() !得到一个当前未使用的unit，用于打开文件
-  !===========================================
-  !                                          
+  !===========================================                                     
   !! Returns an unused unit number
-  !! so we can later open a file on that unit.
-  !                                           
+  !! so we can later open a file on that unit.                                       
   !===========================================
-    implicit none
+  implicit none
 
     integer :: io_file_unit,unit_index
     logical :: file_open

@@ -18,11 +18,13 @@ module sh_dynamic
     !real(kind=dp),external::gaussian_random_number
 
     do ifreem=1,nfreem
+    !forall (ifreem=1:nfreem)
       !xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/k))
       !vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/mass))
       xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/womiga(ifreem) )
       vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp) )
       !in the unit of au
+    !end forall
     enddo
     
   end subroutine init_coordinate_velocity
@@ -51,10 +53,10 @@ module sh_dynamic
     !得到激子在局域基矢下的初始状态
     cc_elec=  cmplx_0
     cc_hole=  cmplx_0
-    n_elec =  0.0d0
-    n_hole =  0.0d0
-    n_elec(init_elec_WF,Rcenter(1),Rcenter(2)) = 1.0
-    n_hole(init_hole_WF,Rcenter(1),Rcenter(2)) = 1.0
+    RE_n_elec =  0.0d0
+    RE_n_hole =  0.0d0
+    RE_n_elec(init_elec_WF,Rcenter(1),Rcenter(2)) = 1.0
+    RE_n_hole(init_hole_WF,Rcenter(1),Rcenter(2)) = 1.0
     index_elec=(Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_elec_WF
     index_hole=(Rcenter(2)-1)*na1site*num_wann+(Rcenter(1)-1)*num_wann+init_hole_WF   
     cc_elec(index_elec)=1.0d0
@@ -64,7 +66,7 @@ module sh_dynamic
     !call set_H_without_Coulomb(xx)
     !call set_H_with_Coulomb(n_elec,n_hole)
     !!求解体系的电子和空穴在库伦相互作用下的哈密顿量并对角化
-    call calculate_eigen_energy_state(xx,n_elec,n_hole)
+    call calculate_eigen_energy_state(xx,RE_n_elec,RE_n_hole)
     !call calculate_eigen_energy_state(h_hole,ee_hole,pp_hole)
     !call Add_Coulomb(Rcenter,init_elec_WF,Rcenter,init_hole_WF,ee)
     !将电子和空穴在local基矢下的表达变换到能量表象下
@@ -146,7 +148,8 @@ module sh_dynamic
     
     Relec_hole(:) = y(:)+Rwann(:,elec_WF)-Rwann(:,hole_WF)
     Reh = sqrt(Sum(Relec_hole**2))
-    E_ehExtion = -(elem_charge_SI**2)/(fopieps0*epsr*Reh)
+    !E_ehExtion = -(elem_charge_SI**2)/(fopieps0*epsr*Reh)
+    E_ehExtion = -1.0/(epsr*Reh)
     ee = ee +E_ehExtion
     
   end subroutine Add_Coulomb

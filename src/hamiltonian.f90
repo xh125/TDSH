@@ -41,6 +41,8 @@ module sh_hamiltonian
     HmnR_Tij_0  = 0.0d0
     HmnR_Tij_ep = 0.0d0
     adj_Tij     = .False.
+    inquire(directory = './Tij_parameter',exist=lexist)
+    if(.not. lexist) call system('mkdir ./Tij_parameter')
     inquire(file="./Tij_parameter/Tij_0",exist=lexist)
     if( .Not. lexist ) then
       !set HmnR_Tij
@@ -76,12 +78,12 @@ module sh_hamiltonian
       HmnR_Tij_name = "./Tij_parameter/Tij_0"
       HmnR_Tij_unit = io_file_unit()
       call open_file(HmnR_Tij_name,HmnR_Tij_unit)
-      write(HmnR_Tij_unit,"(4A5,A12)") " ir1 "," ir2 ","  m  ","  n  "," ReH "     
+      write(HmnR_Tij_unit,"(1X,4A5,A12)") " ir1 "," ir2 ","  m  ","  n  "," ReH "     
       do ir2=-1,1
         do ir1=-1,1
           do n=1,num_wann
             do m=1,num_wann
-              write(HmnR_Tij_unit,"(4I5,F12.6)") ir1,ir2,m,n,HmnR_Tij_0(m,n,ir1,ir2)
+              write(HmnR_Tij_unit,"(1X,4I5,F12.6)") ir1,ir2,m,n,HmnR_Tij_0(m,n,ir1,ir2)
             enddo
           enddo
         enddo
@@ -195,7 +197,8 @@ module sh_hamiltonian
           do m_wann=1,num_wann
             NHmn = (irpts-1)*num_wann*num_wann+(n_wann-1)*num_wann+m_wann
             deta_HmnR(:)=HmnR_mode_dQ(m_wann,n_wann,irpts,:,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,nshiftstep+1,imode)
-            dHmn_dQ=REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/(2.0*real(nshiftstep)*dtadQ)
+            dHmn_dQ=REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,ndQ,imode)-HmnR_mode_dQ(m_wann,n_wann,irpts,1,imode))/&
+                    (2.0*real(nshiftstep)*dtadQ)
             write(HmnRdQ_noma_unit,ctmp) NHmn,irvec(:,irpts,nshiftstep+1,imode),m_wann,n_wann,Real(deta_HmnR(:)),dHmn_dQ
             write(eph_noma_unit,'(6I5,f16.8)') NHmn,irvec(:,irpts,nshiftstep+1,imode),m_wann,n_wann,dHmn_dQ     
           enddo
@@ -216,7 +219,8 @@ module sh_hamiltonian
         do irpts=1,nrpts
           if(irvec(1,irpts,idQ,imode)==0 .and. irvec(2,irpts,idQ,imode)==0 .and. irvec(3,irpts,idQ,imode)==0) then
             write(ctmp,*) '(',num_wann,'(f16.8,1X))'
-            write(TiidQ_noma_unit,ctmp) (REAL(HmnR_mode_dQ(i,i,irpts,idQ,imode)-HmnR_mode_dQ(i,i,irpts,nshiftstep+1,imode)),i=1,num_wann)
+            write(TiidQ_noma_unit,ctmp) &
+            (REAL(HmnR_mode_dQ(i,i,irpts,idQ,imode)-HmnR_mode_dQ(i,i,irpts,nshiftstep+1,imode)),i=1,num_wann)
             write(ctmp,*) "(",num_wann*num_wann,'(A16,1X))'
             write(TijdQ_noma_unit,ctmp) ((REAL(HmnR_mode_dQ(m_wann,n_wann,irpts,idQ,imode)-&
             HmnR_mode_dQ(m_wann,n_wann,irpts,nshiftstep+1,imode)),m_wann=1,num_wann),n_wann=1,num_wann)
@@ -229,21 +233,21 @@ module sh_hamiltonian
       
     enddo
     
-    else       
-      do imode=0,nmode
+    else  !(need chang ,there have some bug!!!!!!!!!!!!!!!!!!)     
+      do imode=0,nfreem
         write(ctmpmode,*) imode
         HmnR_Tij_name= "./Tij_parameter/Tij_"//trim(adjustl(ctmpmode))
         HmnR_Tij_unit=  io_file_unit()
-        read(HmnR_Tij_unit,*)
         call open_file(HmnR_Tij_name,HmnR_Tij_unit)
+        read(HmnR_Tij_unit,"(T5,A10)") ctmp
         do ir2=-1,1
           do ir1=-1,1
             do n=1,num_wann
               do m=1,num_wann
                 if(imode==0) then
-                  read(HmnR_Tij_unit,"(T20,F12.6)") HmnR_Tij_0(m,n,ir1,ir2)
+                  read(HmnR_Tij_unit,"(1X,T21,F12.6)") HmnR_Tij_0(m,n,ir1,ir2)
                 else
-                  read(HmnR_Tij_unit,"(T20,F12.6)") HmnR_Tij_ep(m,n,ir1,ir2,imode)                  
+                  read(HmnR_Tij_unit,"(1X,T21,F12.6)") HmnR_Tij_ep(m,n,ir1,ir2,imode)                  
                 endif
               enddo
             enddo
@@ -256,51 +260,73 @@ module sh_hamiltonian
   
     HmnR_Tij_0  = HmnR_Tij_0/AU2EV   !!转换 为原子单位
     HmnR_Tij_ep = HmnR_Tij_ep/AU2EV*Au2ang*dsqrt(au2amu)
+    write(stdout,*) "Read Tij Succussed"
     
   end subroutine read_TB_parameters
   
-  !!set the Tij parameter of elec and hole with out Coulomb interaction with elec and hole
+  !!set the Tij parameter of elec and hole with out 
+  !!Coulomb interaction with elec and hole
   
   subroutine set_H_without_Coulomb(xx)
     implicit none
     
     real(kind=dp) :: xx(nfreem)
-    integer :: initial1,initial2,m,n
+    integer :: ia2_l,ia2_r,ia1_l,ia1_r,initial1,initial2,m,n
     HmnR_Tij_elec=HmnR_Tij_0
     do ifreem=1,nfreem
       HmnR_Tij_elec=HmnR_Tij_elec+xx(ifreem)*HmnR_Tij_ep(:,:,:,:,ifreem)
     enddo
-    HmnR_Tij_hole=HmnR_Tij_elec
-    do iwann=1,num_wann
-      HmnR_Tij_hole(iwann,iwann,0,0)=-HmnR_Tij_hole(iwann,iwann,0,0)
-    enddo
     
+    H_elec    = 0.0
+    RE_H_elec = 0.0
     !<m0|H|nR>
     !<m0|
-    do ia2site=0,na2site-1
-      do ia1site=0,na1site-1
-        !|nR>    R=(n-ia1site,m-ia2site) 使用了周期性边界条件          
-        do m=ia2site-1,ia2site+1
-          do n=ia1site-1,ia1site+1
-            if ( m>=0 .and. m<na2site-1 .and. n>=0 .and. m<na1site-1 ) then
-              initial1=(ia2site)*na1site*num_wann+(ia1site)*num_wann
-              initial2=m*na1site*num_wann+n*num_wann
-              ir1=n-ia1site
-              ir2=m-ia2site
-              H_elec(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann)=HmnR_Tij_elec(:,:,ir1,ir2)
-              H_hole(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann)=HmnR_Tij_hole(:,:,ir1,ir2)
+    do ia2_l=1,na2site
+      do ia1_l=1,na1site
+        !|nR>
+        do ia2_r=ia2_l-1,ia2_l+1
+          do ia1_r=ia1_l-1,ia1_l+1
+            if(ia2_r>=1 .and. ia2_r<=na2site .and. ia1_r>=1 .and. ia1_r<=na1site) then
+              ir1= ia1_r-ia1_l
+              ir2= ia2_r-ia2_l
+              RE_H_elec(:,ia1_l,ia2_l,:,ia1_r,ia2_r) = HmnR_Tij_elec(:,:,ir1,ir2)
             endif
           enddo
-        enddo 
+        enddo
       enddo
     enddo
+    
+    H_elec = RESHAPE(RE_H_elec,H_shape)
+    H_hole = H_elec
+    
+    !!<m0|H|nR>
+    !!<m0|
+    !do ia2site=0,na2site-1
+     ! do ia1site=0,na1site-1
+      !  !|nR>    R=(n-ia1site,m-ia2site)        
+      !  do m=ia2site-1,ia2site+1
+      !    do n=ia1site-1,ia1site+1
+      !      if ( m>=0 .and. m<na2site-1 .and. n>=0 .and. m<na1site-1 ) then
+      !        initial1=(ia2site)*na1site*num_wann+(ia1site)*num_wann
+      !        initial2=m*na1site*num_wann+n*num_wann
+      !        ir1=n-ia1site
+      !        ir2=m-ia2site
+      !        H_elec(initial1+1:initial1+num_wann,initial2+1:initial2+num_wann)=&
+      !        HmnR_Tij_elec(:,:,ir1,ir2)
+      !      endif
+      !    enddo
+      !  enddo 
+      !enddo
+    !enddo
+    !HmnR_Tij_hole=HmnR_Tij_elec
     
   end subroutine set_H_without_Coulomb
   
   subroutine set_H_with_Coulomb(nn_elec,nn_hole)
     implicit none
     real(kind=dp)::nn_elec(num_wann,na1site,na2site),nn_hole(num_wann,na1site,na2site)
-    integer:: i_WF,j_WF,m,n,initial1,initial2
+    integer:: i_WF,j_WF,m,n,initial1,initial2    
+    !onsite E_onsite(i_WF,ia1site,ia2site)
     do ia2site=1,na2site
       do ia1site=1,na1site
         initial1=(ia2site-1)*na1site*num_wann+(ia1site-1)*num_wann                
@@ -349,10 +375,8 @@ module sh_hamiltonian
     Relec_hole(:) = y(:)+Rwann(:,elec_WF)-Rwann(:,hole_WF)
     Reh = sqrt(Sum(Relec_hole**2))
     if(nn==iia1site .and. mm==iia2site) then
-      !coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*a_lattice)
       coulomb = 1.0/epsr*a_lattice
     else
-      !coulomb = (sqrt_elem_charge_SI)/(fopieps0*epsr*Reh)
       coulomb = 1.0/epsr*Reh
     endif
   
@@ -408,7 +432,8 @@ module sh_hamiltonian
     !include "mkl_lapack.fi"
   
     integer:: ierror,info
-    real(kind=dp) hh(1:nbasis,1:nbasis),ee(1:nbasis),pp(1:nbasis,1:nbasis)
+    real(kind=dp):: hh(1:nbasis,1:nbasis),ee(1:nbasis),pp(1:nbasis,1:nbasis)
+    !pp(:,ibasis) 本征态
     real(kind=dp),allocatable::fv1(:),fv2(:)
     !!!USED in MKL geev
     real(kind=dp),allocatable::vl(:,:),eei(:,:)
@@ -440,43 +465,51 @@ module sh_hamiltonian
   subroutine calculate_nonadiabatic_coupling(ee,pp,dd)
     implicit none
     integer:: jbasis,ik1site,ik2site,initial1,initial2
-    real(kind=dp)::ee(1:nbasis),pp(1:nbasis,1:nbasis),dd(1:nbasis,1:nbasis,1:nfreem)
+    integer:: ia2,ia1
+    real(kind=dp)::ee(1:nbasis),pp(1:nbasis,1:nbasis)
+    real(kind=dp)::dd(1:nbasis,1:nbasis,1:nfreem)
+    real(kind=dp),allocatable :: RE_pp(:,:,:,:)
+    allocate(RE_pp(num_wann,na1site,na2site,nbasis))
+    RE_pp=RESHAPE(pp,P_RE_shape)
     dd=0.0d0
+    !dij_qv
     do ibasis=1,nbasis
-      do jbasis=1,nbasis        
-          do ifreem=1,nfreem
-            !HHmnR_Tij_ep(nnum_wann,nnum_wann,-1:1,-1:1,nnfreem)
-            do ia2site=0,na2site-1
-              do ia1site=0,na1site-1
-                initial1=(ia2site)*na1site*num_wann+(ia1site)*num_wann
-                do n_wann=1,num_wann
-                  ik1site=initial1+n_wann
-                  do m=ia2site-1,ia2site+1
-                    do n=ia1site-1,ia1site+1
-                      if(m>=0 .and. m<=na2site-1 .and. n>=0 .and. n<=na1site-1 ) then
-                      initial2=m*na1site*num_wann+n*num_wann
-                      do m_wann=1,num_wann
-                      ik2site=initial2+m_wann
-                      !read <m0|H|nR>
-                      if(adj_Tij(n_wann,m_wann,n-ia1site,m-ia2site)) then
+      do jbasis=1,ibasis
+        if(abs(ee(ibasis)-ee(jbasis))<=1.0) then
+        do ifreem=1,nfreem
+          !g_qvk1k2*p_k1i*p_k2j
+          !k1
+          do ia2=1,na2site
+            do ia1=1,na1site
+              do n_wann=1,num_wann
+                !k2
+                do m=ia2-1,ia2+1
+                  do n=ia1-1,ia1+1
+                  if(m>=1 .and. m<=na2site .and. n>=1 .and. n<=na1site ) then
+                    do m_wann=1,num_wann
+                    if(adj_Tij(n_wann,m_wann,n-ia1,m-ia2)) then
                       dd(ibasis,jbasis,ifreem) = dd(ibasis,jbasis,ifreem)+&
-                      pp(ik2site,ibasis)*pp(ik1site,jbasis)*HmnR_Tij_ep(n_wann,m_wann,n-ia1site,m-ia2site,ifreem)
-                      endif
-                      enddo
-                      endif
+                      RE_pp(n_wann,ia1,ia2,ibasis)*RE_pp(m_wann,n,m,jbasis)*&
+                      HmnR_Tij_ep(n_wann,m_wann,n-ia1,m-ia2,ifreem)
+                    endif
                     enddo
+                  endif
                   enddo
                 enddo
               enddo
-            enddo 
-            if(jbasis /= ibasis) then
-              dd(ibasis,jbasis,ifreem)=dd(ibasis,jbasis,ifreem)/(ee(jbasis)-ee(ibasis))
-              !dij_dQq
-            endif
-          end do
-        !endif
+            enddo
+          enddo 
+          if(jbasis /= ibasis) then
+            dd(ibasis,jbasis,ifreem)=dd(ibasis,jbasis,ifreem)/(ee(jbasis)-ee(ibasis))
+            dd(jbasis,ibasis,ifreem)= - dd(ibasis,jbasis,ifreem)
+            !dij_dQq
+          endif
+        end do
+        endif
       enddo
     enddo
+    
+    deallocate(RE_pp)
     
   end subroutine calculate_nonadiabatic_coupling
   
@@ -495,7 +528,7 @@ module sh_hamiltonian
     ww=0.0d0
     do ibasis=1,nbasis
       do jbasis=1,nbasis
-        ww(ibasis)=ww(ibasis)+pp(jbasis,ibasis)*cc(jbasis) !
+        ww(ibasis)=ww(ibasis)+pp(jbasis,ibasis)*cc(jbasis)
       enddo
     enddo
     

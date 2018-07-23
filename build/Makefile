@@ -11,7 +11,7 @@ MKLINCLUDE  = -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include
 FCCFLAG	    = -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -liomp5\
               -lmkl_blas95_lp64 -lmkl_lapack95_lp64  
 
-PROG	    = SHexciton.x
+PROG	    = ESHW.x
 #SRC
 SRC      = constants.f90 io.f90 random.f90 utility.f90 parameters.f90 hamiltonian.f90 \
            dynamic.f90 main.f90

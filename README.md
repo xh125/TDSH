@@ -1,22 +1,27 @@
 # This program is use to calculate the dynamic of exciton in two dimentional hitstructure
  the step is as follows
  (1) in the workspace directory mkdir opt and optmizttion the structure
- (2) in the workspace mkdir phono-gamma and calculate vibration
+ (2) in the workspace mkdir phonon-gamma and calculate vibration
  (3) in the workspace mkdir wannier and calculate wannier Wavefunction ,
       and band project on each local WF use wannier package changed by xh
       could save file wannier90_bandproj.dat
  (4) in the workspace mkdir wannierinput and in this directory put the wannier input file 
-     (INCAR KPOINTS POTCAR wannier90.win)and bsub script
- (5) in phono-gamma directory exection ./NsPOSCAR.x with shiftinp file
+     (INCAR wannier90.win)and bsub script(vasp.bsub) (bsub name called *wannier eg. 
+      mpijob.intelmpi vasp_std > C_wannier)
+ (5) in workspace directory exection NsPOSCAR.x with shiftinp file
     shiftinp
-    &input
-    ndQ = 20
-    nstep = 5
-    /
+&input
+dQ        = 0.0020
+nstep      = 5
+lbsub      = .TRUE.
+amass(1)   =  95.942
+amass(2)   =  32.065
+amass(3)   =  183.841
+/
  (6) the exection will mkdir workspace/nomashift/noma_imode/shift_ldQ/
     and in this directory calculate wannier90
  (7) in directory workspace add file SHIN as the exciton SH input file 
-    and zhixing SHexciton.x
+    and exect SHexciton.x
  (8) the SHIN as follows
     na1site = 500
     na2site = 500

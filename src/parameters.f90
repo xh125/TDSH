@@ -2,11 +2,11 @@ module sh_parameters
   !! This module contains parameters to control the actions of SCSH.
   !! Also routines to read the parameters and write them out again.
   use sh_constants
-  use sh_io       ,only : stdout,maxlen
-  
+  use sh_io       ,only : stdout,maxlen  
   implicit none
   
   integer,public  ::  na1site,ia1site,na2site,ia2site
+  integer,public  ::  ia1site_r,ia1site_l,ia2site_r,ia2site_l
   !! Number of cell in xy plan
   integer,public  ::  num_wann,iwann,n_wann,m_wann
   !! Number of wannier function in home-unit cell
@@ -15,7 +15,7 @@ module sh_parameters
   integer,public  ::  nbasis,ibasis
   !! Number of basis in Hamitonian( nbasis = na1site*na2site*num_wann)
   integer,public  ::  nfreem,ifreem
-  !! Number of phonon zhishu (nfreem = natoms*3)
+  !! Number of phonon zhishu (nfreem = natoms*3-3)
   integer         ::  naver,iaver
   !! Number of trajects in Sample
   integer         ::  nsnap,isnap
@@ -38,31 +38,39 @@ module sh_parameters
   ! 考虑最邻近cell之间的转移积分的TB的参数以及电声相互作用对转移积分的影响，
   ! 包含局域与非局域电声相互作用后的TB参数
   real(kind=dp),allocatable,public :: H_hole(:,:),H_elec(:,:)
+  real(kind=dp),allocatable,public :: RE_H_hole(:,:,:,:,:,:),RE_H_elec(:,:,:,:,:,:)
   ! 电子和空穴的TB-Hamitonian
   integer,public  ::  isurface_elec,isurface_hole    
   !! 电子和空穴在势能面上的指标
   !! The elecrto or hole state index
   integer         ::  R_elec(0:2),R_hole(0:2)
   ! 电子和空穴所在的site包含晶胞R，和wannier函数指标
+  integer ::  H_shape(2),H_RE_shape(6),P_shape(2),P_RE_shape(4)
 
   !real(kind=dp),allocatable,public :: q(:),v(:),e(:),p(:,:),d(:,:,:),g(:)
   !real(kind=dp),allocatable,public :: q0(:),v0(:),e0(:),p0(:,:),d0(:,:,:),g1(:)
   real(kind=dp),allocatable,public :: Q(:),Vq(:),Q0(:),Vq0(:)
   real(kind=dp),allocatable,public :: e_elec(:),p_elec(:,:),d_elec(:,:,:),g_elec(:)
+  real(kind=dp),allocatable,public :: RE_p_elec(:,:,:,:)
   real(kind=dp),allocatable,public :: e_hole(:),p_hole(:,:),d_hole(:,:,:),g_hole(:)
+  real(kind=dp),allocatable,public :: RE_p_hole(:,:,:,:)
   !电子和空穴的本征值本征态，非绝热耦合项，跃迁几率元
   real(kind=dp),allocatable,public :: e0_elec(:),p0_elec(:,:),d0_elec(:,:,:),g1_elec(:)
   real(kind=dp),allocatable,public :: e0_hole(:),p0_hole(:,:),d0_hole(:,:,:),g1_hole(:)
+  real(kind=dp),allocatable,public :: RE_p0_elec(:,:,:,:),RE_p0_hole(:,:,:,:)
   
   real(kind=dp),allocatable,public :: pes_elec(:,:,:),inf_elec(:,:,:),csit_elec(:,:),&
                                       wsit_elec(:,:),psit_elec(:,:),ipr_elec(:)                         
   real(kind=dp),allocatable,public :: pes_hole(:,:,:),inf_hole(:,:,:),csit_hole(:,:),&
                                       wsit_hole(:,:),psit_hole(:,:),ipr_hole(:)
   real(kind=dp),allocatable,public :: pes_exciton(:,:,:)
+  real(kind=dp),allocatable,public :: RE_csit_elec(:,:,:,:),RE_csit_hole(:,:,:,:)
   
   complex(kind=dpc),allocatable,public :: c_elec(:) , w_elec(:) , w0_elec(:)
-  complex(kind=dpc),allocatable,public :: c_hole(:) , w_hole(:) , w0_hole(:)    
-  real(kind=dp),allocatable,public     :: n_elec(:,:,:) , n_hole(:,:,:),n0_elec(:,:,:),n0_hole(:,:,:)
+  complex(kind=dpc),allocatable,public :: c_hole(:) , w_hole(:) , w0_hole(:)
+  real(kind=dp),allocatable,public     :: n_elec(:) , n_hole(:),n0_elec(:),n0_hole(:)
+  real(kind=dp),allocatable,public     :: RE_n_elec(:,:,:) , RE_n_hole(:,:,:)
+  real(kind=dp),allocatable,public     :: RE_n0_elec(:,:,:), RE_n0_hole(:,:,:)
   !电子和空穴的占据分布
   real(kind=dp),allocatable,public :: xsit(:,:),ksit(:,:),msd(:),msds(:,:) 
   
@@ -79,7 +87,7 @@ module sh_parameters
   real(kind=dp):: epsr
   !!!band project on WFs
   real(kind=dp),allocatable,public :: bands_projs(:,:,:)
-  real(kind=dp)     ::t0,t1,time0,time1,time2
+  real(kind=dp)     ::t0,t1,t2,t3,time0,time1,time2,time3
   character(len=9)  ::cdate,ctime 
   
   integer         ::  Rcenter(3)
@@ -150,7 +158,7 @@ module sh_parameters
     call readWFcentre()
     call readBandProjs()
     call treat_parameters()
-    
+    write(stdout,*) "Read parameter Successful!"
   end subroutine read_parameters
   
   !=======================================!
@@ -318,6 +326,7 @@ module sh_parameters
     rewind(Hr_unit)
     call close_file(Hr_name,Hr_unit)
     nbasis = na1site*na2site*num_wann
+    write(stdout,*) "NUM_wann=",num_wann
     
   end subroutine set_num_wann
   
@@ -364,7 +373,9 @@ module sh_parameters
     num_atoms = sum(atoms_species_num)
     nfreem = 3 * num_atoms
     call close_file(poscar_name,poscar_unit)
-  
+    write(stdout,*) "NUM_atoms=",num_atoms
+    write(stdout,*) "Atoms_symbol:",(atoms_symbol(i),i=1,num_species)
+    write(stdout,*) "Atoms of each symbol:",(atoms_species_num(i),i=1,num_species)
   end subroutine readPOSCAR
  
   !====================================================================!
@@ -400,6 +411,11 @@ module sh_parameters
     enddo
     
     call close_file(wvecter_name,wvecter_unit)
+    write(stdout,*) "===========Womiga=============="
+    do ifreem=1,nfreem
+      write(stdout,*) "womiga(",ifreem,")=",womiga(ifreem),"mev"
+    enddo
+    write(stdout,*) "=======END-Womiga=============="
     
   end subroutine readwomiga
   
@@ -463,7 +479,19 @@ module sh_parameters
     use sh_constants
     use sh_io
     implicit none	
-
+    
+    H_shape       = nbasis
+    H_RE_shape(1) = num_wann
+    H_RE_shape(2) = na1site
+    H_RE_shape(3) = na2site
+    H_RE_shape(4) = num_wann
+    H_RE_shape(5) = na1site
+    H_RE_shape(6) = na2site    
+    P_shape       = nbasis
+    P_RE_shape(1) = num_wann
+    P_RE_shape(2) = na1site
+    P_RE_shape(3) = na2site
+    P_RE_shape(4) = nbasis
     Rcenter(1) =anint(na1site/2.0d0)
     Rcenter(2) =anint(na2site/2.0d0)
     !HmnR_Tij(m,n,ir1, ir2)
@@ -477,11 +505,15 @@ module sh_parameters
     !allocate(HH0(1:nbasis,1:nbasis),HHt(1:nbasis,1:nbasis))
     !allocate(Hep(1:nbasis,1:nbasis,1:nfreem))
     allocate(H_hole(nbasis,nbasis),H_elec(nbasis,nbasis))
+    allocate(RE_H_hole(num_wann,na1site,na2site,num_wann,na1site,na2site))
+    allocate(RE_H_elec(num_wann,na1site,na2site,num_wann,na1site,na2site))
     allocate(Q(1:nfreem),Vq(1:nfreem),Q0(1:nfreem),Vq0(1:nfreem))
     allocate(e_elec(1:nbasis),p_elec(1:nbasis,1:nbasis),d_elec(1:nbasis,1:nbasis,1:nfreem),g_elec(1:nbasis))
     allocate(e_hole(1:nbasis),p_hole(1:nbasis,1:nbasis),d_hole(1:nbasis,1:nbasis,1:nfreem),g_hole(1:nbasis))
+    allocate(RE_p_elec(num_wann,na1site,na2site,nbasis),RE_p_hole(num_wann,na1site,na2site,nbasis))
     allocate(e0_elec(1:nbasis),p0_elec(1:nbasis,1:nbasis),d0_elec(1:nbasis,1:nbasis,1:nfreem),g1_elec(1:nbasis))
     allocate(e0_hole(1:nbasis),p0_hole(1:nbasis,1:nbasis),d0_hole(1:nbasis,1:nbasis,1:nfreem),g1_hole(1:nbasis))
+    allocate(RE_p0_elec(num_wann,na1site,na2site,nbasis),RE_p0_hole(num_wann,na1site,na2site,nbasis))
     allocate(pes_elec(0:nbasis,1:nsnap,1:naver),inf_elec(1:3,1:nsnap,1:naver),csit_elec(1:nbasis,1:nsnap),&
            wsit_elec(1:nbasis,1:nsnap),psit_elec(1:nbasis,1:nsnap),ipr_elec(1:nsnap) )           
     allocate(pes_hole(0:nbasis,1:nsnap,1:naver),inf_hole(1:3,1:nsnap,1:naver),csit_hole(1:nbasis,1:nsnap),&
@@ -489,8 +521,9 @@ module sh_parameters
     allocate(pes_exciton(-1:nbasis,1:nsnap,1:naver))
     allocate(c_elec(1:nbasis),w_elec(1:nbasis),w0_elec(1:nbasis))
     allocate(c_hole(1:nbasis),w_hole(1:nbasis),w0_hole(1:nbasis))
-    allocate(n_elec(num_wann,na1site,na2site),n_hole(num_wann,na1site,na2site))
-    allocate(n0_elec(num_wann,na1site,na2site),n0_hole(num_wann,na1site,na2site))
+    allocate(n_elec(nbasis),n_hole(nbasis),n0_elec(nbasis),n0_hole(nbasis))
+    allocate(RE_n_elec(num_wann,na1site,na2site),RE_n_hole(num_wann,na1site,na2site))
+    allocate(RE_n0_elec(num_wann,na1site,na2site),RE_n0_hole(num_wann,na1site,na2site))
     allocate(msds(1:nsnap,1:naver),xsit(1:nbasis,1:nsnap),ksit(1:nbasis,1:nsnap),msd(1:nsnap))
     
     temp          = temp/Au2k

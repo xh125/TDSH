@@ -5,7 +5,7 @@
 !=====================================================================================================!
 != elec-hole coulomb interactions and system interaction with environment by system-bath interactions=!     
 !=====================================================================================================!
-!= Last updata 2018-6.5 Version:0.2.7                                                                 !   
+!= Last updata 2018-7.2 Version:0.2.8                                                                !   
 != Developed by xiehua at department of physic, USTC;xh125@mail.ustc.edu.cn                          =!
 !=====================================================================================================!
 
@@ -28,7 +28,7 @@ program SCSH
   !===============!
   != preparation =!
   !===============!
-	
+
   time0   = io_time()
   call cpu_time(t0)
   stdout  = io_file_unit()
@@ -65,7 +65,8 @@ program SCSH
 
     do isnap=1,nsnap
       do istep=1,nstep
-
+        
+        time1   = io_time()
         !==========================!
         != update x,v,c,e,p,d,w,g =!
         !==========================!
@@ -119,8 +120,8 @@ program SCSH
 
         Q0=Q; Vq0=Vq; E0_elec=E_elec; p0_elec=p_elec; d0_elec=d_elec; w0_elec=w_elec;w0_hole=w_hole
         E0_hole=E_hole; p0_hole=p_hole; d0_hole=d_hole
-      time2   = io_time()
-      write(stdout,"(A5,1X,I10,1X,I15)") 'Step=',istep,time2
+        time2   = io_time()
+      write(stdout,"(A5,1X,I10,1X,F15.6,1X,A10)") 'Step=',istep,(time2-time1),"seconds"
       enddo
       
       !=====================!

@@ -12,5 +12,5 @@ amass(3)   =  183.841
 nstep ,体系将沿简正坐标正负方向分别偏移nstep步
 
 和wannier执行参数文件夹wannierinput
-在wannierinput文件夹中包含文件INCAR，KPOINTS，POTCAR，vasp.bsub，wannier90.win
+在wannierinput文件夹中包含文件INCAR，vasp.bsub，wannier90.win
 并在计算目录下执行NsPOSCAR.x

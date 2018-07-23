@@ -1,3 +1,15 @@
+!#########################setposcar ##############################
+!####version 0.01                                                #
+!####Last update time 2018.7.23                                  #
+!####Write by xiehua                                             #
+!####Email : xh125@mail.ustc.edu.cn                              #
+!####Function: This program is to shift the POSCAR atoms position#
+!####          as (noma mode Vecter /atom_mass**0.5)             #
+!####          and then ,calculate the wannier function and TB   #
+!####          parameter as a functon of noma shift inorder to   #
+!####          get the electro-phonon couping comparaters.       #
+!####cankao: J. Chem. Theory Comput. 2018, 14, 3752−3762         #
+!#################################################################
 module parameters
   implicit none
   
@@ -5,22 +17,28 @@ module parameters
   integer,parameter     ::  maxlen=80
   integer               ::  poscar_unit
   character(len=maxlen) ::  poscar_name
-  character(len=maxlen) ::  ctmp,poscarcomment,Charac
-  character(len=maxlen) ::  ctmpstep,ctmpldQ,ctmpmode
-  real(kind=dp)         ::  scalel
-  real(kind=dp)         ::  real_lattice(3,3)
-  integer               ::  num_atoms,num_species
-  character(len=2),allocatable::  atoms_symbol(:)
-  integer,allocatable         ::  atoms_species_num(:)
-  real(kind=dp),allocatable   ::  amass(:)
-  integer :: ierr,itmp
-  integer :: nmode,nstep,i,j,k,m  !,ndQ
-  logical               :: lexist,lbsub
+  character(len=maxlen) ::  poscarcomment          !POSCAR  line=1
+  real(kind=dp)         ::  scalel                 !POSCAR line=2
+  real(kind=dp)         ::  real_lattice(3,3)      !POSCAR line=3,4,5
+                                                   !格矢，a11,a12,a13...
+  integer               ::  num_atoms,num_species  !POSCAR line=6,7
+                                                   !原子总数，元素总数
+  character(len=2),allocatable::  atoms_symbol(:)  !line=6,元素符号
+  integer,allocatable         ::  atoms_species_num(:) !line=7,各元素原子个数
+  character(len=maxlen)       :: Charac            !line=8 原子位置坐标类型
+  real(kind=dp),allocatable   ::  amass(:)         !各元素的原子质量
+  
+  character(len=maxlen) ::  ctmp     !临时字符串
+  integer :: ierr,itmp               !临时整数
+  integer :: nmode,nstep,i,j,k,m     !ndQ
   
   integer :: iatomstype,iatom,imode,istep
-  real(kind=dp)  ::ldQ
-  real(kind=dp) :: dQ
-  character(len=maxlen)::comment,vecterfile
+  real(kind=dp)  :: ldQ
+  real(kind=dp)  :: dQ
+  character(len=maxlen) ::  ctmpstep,ctmpldQ,ctmpmode
+  character(len=maxlen) ::  comment,vecterfile
+  logical               ::  lexist,lbsub
+  
   real(kind=dp),allocatable::positiondQ0(:,:)
   real(kind=dp),allocatable::positiondQ(:,:)
   real(kind=dp),allocatable::phonovecter(:,:,:)
@@ -88,7 +106,7 @@ program mkPOSCAR
       ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
-      ctmp = 'sed  -i “8s/22/'//'-'//trim(adjustl(ctmpmode))//'-'//trim(adjustl(ctmpldQ))//'/g ” '// &
+      ctmp = 'sed  -i “8s/wannier/'//'-'//trim(adjustl(ctmpmode))//'-'//trim(adjustl(ctmpldQ))//'/g ” '// &
       './nomashift/noma_'// trim(adjustl(ctmpmode))//'/shift_'//trim(adjustl(ctmpldQ))//'/vasp.bsub'
       call system(ctmp)
       call Write_nomal_shift_POSCAR(imode,istep)      
@@ -116,7 +134,7 @@ end program
     use parameters
     implicit none         
     
-    poscar_name  = './phono-gamma/POSCAR'
+    poscar_name  = './phonon-gamma/POSCAR'
     poscar_unit  = io_file_unit()
     call open_file(poscar_name,poscar_unit)
     read(poscar_unit,*) poscarcomment         !line 1
@@ -147,7 +165,7 @@ end program
     read(poscar_unit,FMT=*,iostat=ierr) (atoms_symbol(i),i=1,num_species)
     read(poscar_unit,FMT=*,iostat=ierr) (atoms_species_num(i),i=1,num_species)
     num_atoms = sum(atoms_species_num)
-    nmode = 3 * num_atoms
+    nmode = 3 * (num_atoms-1)
     allocate(amass(num_species))
     allocate(positiondQ0(3,num_atoms))
     allocate(positiondQ(3,num_atoms))
@@ -234,17 +252,22 @@ end program
     implicit none
     character(len=maxlen) :: wvecter_name
     integer               :: wvecter_unit
-    inquire(file='./phono-gamma/wvecter.txt',exist=lexist)
-    
+    inquire(file='./phonon-gamma/wvecter.txt',exist=lexist)
     if(.NOT. lexist) then
-      call system('cd ./phono-gamma')
-      call system('grep -A200 "Eigenvectors and eigenvalues of the dynamical matrix" OUTCAR>wvecter.txt')
-      call system('wait')
-      call system('cd -')
+      itmp = (num_atoms+3)*num_atoms*3+50
+      write(ctmp,*) itmp
+      ctmp ='grep -A'//trim(adjustl(ctmp))//&
+            ' "dynamical matrix" ./phonon-gamma/OUTCAR>./phono-gamma/wvecter.txt'
+      write(*,*) ctmp
+      call system(ctmp)
+      !call system('cd ./phono-gamma')
+      !call system('grep -A200 "dynamical matrix" ./phonon-gamma/OUTCAR>./phono-gamma/wvecter.txt')
+      !call system('wait')
+      !call system('cd -')
     endif
     
     wvecter_unit = io_file_unit()
-    wvecter_name = "./phono-gamma/wvecter.txt"
+    wvecter_name = "./phonon-gamma/wvecter.txt"
     call open_file(wvecter_name,wvecter_unit)
     !read the first 3 lines.
     read(wvecter_unit,"(1X,//,A50)") comment
