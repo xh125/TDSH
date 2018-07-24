@@ -2,12 +2,13 @@
  the step is as follows
  (1) in the workspace directory mkdir opt and optmizttion the structure
  (2) in the workspace mkdir phonon-gamma and calculate vibration
+      (the POSCAR need to use Caracter POSCAR)
  (3) in the workspace mkdir wannier and calculate wannier Wavefunction ,
       and band project on each local WF use wannier package changed by xh
       could save file wannier90_bandproj.dat
  (4) in the workspace mkdir wannierinput and in this directory put the wannier input file 
      (INCAR wannier90.win)and bsub script(vasp.bsub) (bsub name called *wannier eg. 
-      mpijob.intelmpi vasp_std > C_wannier)
+      mpijob.intelmpi vasp_std > C_wannier and in the line=8)
  (5) in workspace directory exection NsPOSCAR.x with shiftinp file
     shiftinp
 &input
