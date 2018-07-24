@@ -14,7 +14,7 @@ module parameters
   implicit none
   
   integer,parameter     ::  dp=kind(1.0D0)
-  integer,parameter     ::  maxlen=80
+  integer,parameter     ::  maxlen=180
   integer               ::  poscar_unit
   character(len=maxlen) ::  poscar_name
   character(len=maxlen) ::  poscarcomment          !POSCAR  line=1
@@ -90,7 +90,7 @@ program mkPOSCAR
     write(ctmpmode,*) imode
     ctmp = "mkdir ./nomashift/noma_"// trim(adjustl(ctmpmode))
     call system(ctmp)
-    write(*,*) ctmp
+    !write(*,*) ctmp
     do istep=1,2*nstep+1
       ldQ=(istep-1)*dQ-nstep*dQ
       write(ctmpldQ,"(F8.4)") ldQ
@@ -106,9 +106,8 @@ program mkPOSCAR
       ctmp = "cp ./wannierinput/* ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
                  "/shift_"//trim(adjustl(ctmpldQ))
       call system(ctmp)
-      ctmp = 'sed  -i "8s/wannier/'//trim(adjustl(ctmpmode))//'_'//trim(adjustl(ctmpldQ))//'/g" '// &
+      ctmp = 'sed  -i "8s/wannier/'//'-'//trim(adjustl(ctmpmode))//'-'//trim(adjustl(ctmpldQ))//'/g " '// &
       './nomashift/noma_'// trim(adjustl(ctmpmode))//'/shift_'//trim(adjustl(ctmpldQ))//'/vasp.bsub'
-      write(*,*) ctmp
       call system(ctmp)
       call Write_nomal_shift_POSCAR(imode,istep)      
       ctmp = "cd ./nomashift/noma_"// trim(adjustl(ctmpmode))//&
@@ -172,6 +171,10 @@ end program
     allocate(positiondQ(3,num_atoms))
     !line 8
     read(poscar_unit,*) Charac
+    if(Charac(1:1)/='C' .and. Charac(1:1)=='c') then
+      write(*,*)"./phonon-gamma/POSCAR need Caracter POSCAR" 
+      stop
+    endif
     !line 9-~
     do iatom=1,num_atoms
       read(poscar_unit,*) positiondQ0(:,iatom)
@@ -215,7 +218,7 @@ end program
       enddo
       call close_file(poscar_name,poscar_unit)
     else 
-    write(poscar_unit,*) "Direct"
+      write(poscar_unit,*) "Direct"
       call close_file(poscar_name,poscar_unit)
       write(*,*) "POSCAR error!! need Caracter POSCAR"
       stop
@@ -258,13 +261,8 @@ end program
       itmp = (num_atoms+3)*num_atoms*3+50
       write(ctmp,*) itmp
       ctmp ='grep -A'//trim(adjustl(ctmp))//&
-            ' "dynamical matrix" ./phonon-gamma/OUTCAR > ./phonon-gamma/wvecter.txt'
-      write(*,*) ctmp
+            ' "dynamical matrix" ./phonon-gamma/OUTCAR>./phono-gamma/wvecter.txt'
       call system(ctmp)
-      !call system('cd ./phono-gamma')
-      !call system('grep -A200 "dynamical matrix" ./phonon-gamma/OUTCAR>./phono-gamma/wvecter.txt')
-      !call system('wait')
-      !call system('cd -')
     endif
     
     wvecter_unit = io_file_unit()
@@ -275,9 +273,6 @@ end program
 
     do imode=1,nmode
       read(wvecter_unit,"(1X,//,A50)") comment
-      !do iatom=1,num_atoms
-        !read(wvecter_unit,*) positiondQ0(:,iatom),phonovecter(:,iatom,imode)
-      !end do
       iatom = 0 
       do i=1,num_species
         do j=1,atoms_species_num(i)
