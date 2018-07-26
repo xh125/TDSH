@@ -5,7 +5,7 @@
 !=====================================================================================================!
 != elec-hole coulomb interactions and system interaction with environment by system-bath interactions=!     
 !=====================================================================================================!
-!= Last updata 2018-7.2 Version:0.2.8                                                                !   
+!= Last updata 2018-7.2 Version:0.2.8                                                                 !   
 != Developed by xiehua at department of physic, USTC;xh125@mail.ustc.edu.cn                          =!
 !=====================================================================================================!
 

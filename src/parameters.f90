@@ -74,6 +74,12 @@ module sh_parameters
   !电子和空穴的占据分布
   real(kind=dp),allocatable,public :: xsit(:,:),ksit(:,:),msd(:),msds(:,:) 
   
+  
+  !initial hot phonon
+  logical       :: L_hotphonon
+  integer       :: hot_mode
+  real(kind=dp) :: hot_scal
+  
   !initial state elec and hole
   integer ::  init_elec_K,elecK
   integer ::  init_elec_band,elecB
@@ -133,7 +139,8 @@ module sh_parameters
   
 	namelist / shinput / na1site,na2site,temp,gamma,dt,&
                        nstep,nsnap,naver,elecb,eleck,holeb,holek,&
-                       epsr,nshiftstep,dtadq,lephfile,Num_occupied
+                       epsr,nshiftstep,dtadq,lephfile,Num_occupied,&
+                       L_hotphonon,hot_mode,hot_scal
   
   contains  
   
@@ -293,6 +300,9 @@ module sh_parameters
       holeK   = 100
       Lephfile= .False.
       Num_occupied= 1
+      L_hotphonon= .true.
+      hot_mode = 1
+      hot_scal = 1.5
       !end initial
       read(UNIT=incar_unit,nml=shinput,iostat=ierr,iomsg=msg)
       if(ierr /= 0) then
@@ -371,7 +381,7 @@ module sh_parameters
     read(poscar_unit,FMT=*,iostat=ierr) (atoms_symbol(i),i=1,num_species)
     read(poscar_unit,FMT=*,iostat=ierr) (atoms_species_num(i),i=1,num_species)
     num_atoms = sum(atoms_species_num)
-    nfreem = 3 * num_atoms
+    nfreem = 3 * (num_atoms-1)
     call close_file(poscar_name,poscar_unit)
     write(stdout,*) "NUM_atoms=",num_atoms
     write(stdout,*) "Atoms_symbol:",(atoms_symbol(i),i=1,num_species)
@@ -392,12 +402,11 @@ module sh_parameters
     allocate(womiga(nfreem))
     
     wvecter_unit = io_file_unit()
-    wvecter_name = "./phono-gamma/wvecter.txt"
-    inquire(file="./phono-gamma/wvecter.txt",exist=lexist)
+    wvecter_name = "./phonon-gamma/wvecter.txt"
+    inquire(file="./phonon-gamma/wvecter.txt",exist=lexist)
     if(.Not. lexist) then
-      call system('cd ./phono-gamma')
-      call system('grep -A200 "Eigenvectors and eigenvalues of the dynamical matrix" OUTCAR>wvecter.txt')
-      call system('cd -')
+      write(stdout,*) "Wrong: the file './phonon-gamma/wvecter.txt' is not found!"
+      stop
     endif
     
     call open_file(wvecter_name,wvecter_unit)
@@ -441,13 +450,16 @@ module sh_parameters
     
   end subroutine readWFcentre
   
+  !================================================!
+  !=get the project of line band on wannier orbital!
+  !================================================!
   subroutine readBandProjs()
     use sh_constants
     use sh_io
     implicit none
-    integer::total_pts,ipt
-    real(kind=dp),allocatable ::  xval(:)
-    real(kind=dp),allocatable ::  eig_int(:,:)
+    integer::total_pts,ipt   !num of kpointer in band line
+    real(kind=dp),allocatable ::  xval(:)   !kpointer lable in x value
+    real(kind=dp),allocatable ::  eig_int(:,:) !line band
     integer:: i , j
     integer:: bandproj_unit
     character(len=maxlen):: bandproj_name
@@ -460,6 +472,7 @@ module sh_parameters
     allocate(xval(total_pts))
     allocate(eig_int(total_pts,num_wann))
     allocate(bands_projs(total_pts,num_wann,num_wann))
+    ! benzheng tai zai wannier orbital shang de tou ying.
     
     write(ctmp,*) num_wann + 2
     ctmp = '('//trim(adjustl(ctmp))//'E16.8)'
