@@ -121,9 +121,11 @@ program SCSH
         Q0=Q; Vq0=Vq; E0_elec=E_elec; p0_elec=p_elec; d0_elec=d_elec; w0_elec=w_elec;w0_hole=w_hole
         E0_hole=E_hole; p0_hole=p_hole; d0_hole=d_hole
         time2   = io_time()
-      write(stdout,"(A5,1X,I10,1X,F15.6,1X,A10)") 'Step=',istep,(time2-time1),"seconds"
+        write(stdout,"(A5,1X,I10,1X,F15.6,1X,A10)") 'Step=',istep,(time2-time1),"seconds"
       enddo
-      
+      if(L_test) then
+        stop
+      endif
       !=====================!
       != store information =!
       !=====================!

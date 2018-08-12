@@ -79,6 +79,8 @@ module sh_parameters
   logical       :: L_hotphonon
   integer       :: hot_mode
   real(kind=dp) :: hot_scal
+  ! write hamitonian parameter and test run one step time
+  logical       :: L_test
   
   !initial state elec and hole
   integer ::  init_elec_K,elecK
@@ -89,6 +91,7 @@ module sh_parameters
   integer ::  init_hole_band,holeB
   integer ::  init_hole_WF
   integer ::  index_hole
+  logical ::  L_exciton
   !! Dielectric Constant ->  $$\epsilon_r$$
   real(kind=dp):: epsr
   !!!band project on WFs
@@ -127,6 +130,7 @@ module sh_parameters
   character(len=maxlen), allocatable :: in_data(:)
   character(len=maxlen)              :: ctmp,ctmp1,ctmp2
   logical                            :: ltmp,lexist,Lhole,Lephfile
+  logical                            :: lbolziman
   integer                            :: itmp
   real(kind=dp)                      :: rtmp
   integer                            :: ierr
@@ -137,10 +141,11 @@ module sh_parameters
   real(kind=dp)::dtadQ,ldQ
   !!!!
   
-	namelist / shinput / na1site,na2site,temp,gamma,dt,&
+	namelist / shinput / na1site,na2site,num_wann,temp,gamma,dt,&
                        nstep,nsnap,naver,elecb,eleck,holeb,holek,&
                        epsr,nshiftstep,dtadq,lephfile,Num_occupied,&
-                       L_hotphonon,hot_mode,hot_scal
+                       L_hotphonon,hot_mode,hot_scal,lbolziman,L_test,&
+                       L_exciton
   
   contains  
   
@@ -288,6 +293,7 @@ module sh_parameters
       !initial parameters
       na1site = 100
       na2site = 100
+      num_wann= 22
       temp    = 300
       gamma   = 0.05
       dt      = 0.01
@@ -299,6 +305,8 @@ module sh_parameters
       holeB   = 17
       holeK   = 100
       Lephfile= .False.
+      lbolziman=.TRUE.
+      L_test  = .TRUE.
       Num_occupied= 1
       L_hotphonon= .true.
       hot_mode = 1
@@ -329,12 +337,15 @@ module sh_parameters
     character(len=255) :: Hr_name
     integer            :: Hr_unit   		
     Hr_name  ="./wannier/wannier90_hr.dat"
-    Hr_unit = io_file_unit()
-    call open_file(Hr_name,Hr_unit)
-    read(Hr_unit, *) ctmp
-    read(Hr_unit, *) num_wann
-    rewind(Hr_unit)
-    call close_file(Hr_name,Hr_unit)
+    inquire(directory = './wannier',exist=lexist)
+    if(lexist) then
+      Hr_unit = io_file_unit()
+      call open_file(Hr_name,Hr_unit)
+      read(Hr_unit, *) ctmp
+      read(Hr_unit, *) num_wann
+      rewind(Hr_unit)
+      call close_file(Hr_name,Hr_unit)
+    endif
     nbasis = na1site*na2site*num_wann
     write(stdout,*) "NUM_wann=",num_wann
     

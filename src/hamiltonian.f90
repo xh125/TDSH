@@ -146,7 +146,7 @@ module sh_hamiltonian
             do ir1=-1,1
               do n=1,num_wann
                 do m=1,num_wann
-                  write(HmnR_Tij_unit,"(4I5,F12.6)") ir1,ir2,m,n,HmnR_Tij_ep(m,n,ir1,ir2,imode)
+                  write(HmnR_Tij_unit,"(1X,4I5,F12.6)") ir1,ir2,m,n,HmnR_Tij_ep(m,n,ir1,ir2,imode)
                 enddo
               enddo
             enddo
@@ -239,15 +239,16 @@ module sh_hamiltonian
         HmnR_Tij_name= "./Tij_parameter/Tij_"//trim(adjustl(ctmpmode))
         HmnR_Tij_unit=  io_file_unit()
         call open_file(HmnR_Tij_name,HmnR_Tij_unit)
-        read(HmnR_Tij_unit,"(T5,A10)") ctmp
+        !read(HmnR_Tij_unit,"(T5,A10)") ctmp
+        read(HmnR_Tij_unit,*)
         do ir2=-1,1
           do ir1=-1,1
             do n=1,num_wann
               do m=1,num_wann
                 if(imode==0) then
-                  read(HmnR_Tij_unit,"(1X,T21,F12.6)") HmnR_Tij_0(m,n,ir1,ir2)
+                  read(HmnR_Tij_unit,"(1X,T22,F12.6)") HmnR_Tij_0(m,n,ir1,ir2)
                 else
-                  read(HmnR_Tij_unit,"(1X,T21,F12.6)") HmnR_Tij_ep(m,n,ir1,ir2,imode)                  
+                  read(HmnR_Tij_unit,"(1X,T22,F12.6)") HmnR_Tij_ep(m,n,ir1,ir2,imode)                  
                 endif
               enddo
             enddo
@@ -411,13 +412,17 @@ module sh_hamiltonian
     real(kind=dp) ::  nn_elec(num_wann,na1site,na2site),nn_hole(num_wann,na1site,na2site)
     real(kind=dp) ::  e_coulomb
     call set_H_without_Coulomb(xx)
-    call set_H_with_Coulomb(nn_elec,nn_hole)
-    call dia_H(h_elec,e_elec,p_elec)
-    call dia_H(h_hole,e_hole,p_hole)
-    e_coulomb = en_addit(nn_elec,nn_hole)
-    e_elec=e_elec+e_coulomb/2.0
-    e_hole=e_hole-e_coulomb/2.0
-    
+    if(L_exciton) then
+      call set_H_with_Coulomb(nn_elec,nn_hole)
+      call dia_H(h_elec,e_elec,p_elec)
+      call dia_H(h_hole,e_hole,p_hole)
+      e_coulomb = en_addit(nn_elec,nn_hole)
+      e_elec=e_elec+e_coulomb/2.0
+      e_hole=e_hole-e_coulomb/2.0
+    else
+      call dia_H(h_elec,e_elec,p_elec)
+      call dia_H(h_hole,e_hole,p_hole)
+    endif
     
   end subroutine
   !========================================!

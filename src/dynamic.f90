@@ -16,19 +16,33 @@ module sh_dynamic
 
     real(kind=dp)::xx(1:nfreem),vv(1:nfreem)
     !real(kind=dp),external::gaussian_random_number
+    real(kind=dp) :: nb   ! bolziman fenbuzhi
 
     do ifreem=1,nfreem
+      nb=bolziman(womiga(ifreem),temp)
     !forall (ifreem=1:nfreem)
       !xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/k))
       !vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp/mass))
-      xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/womiga(ifreem) )
-      vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp) )
+      if(lbolziman) then
+        xx(ifreem)=gaussian_random_number(0.0d0,dsqrt((nb+0.5)*womiga(ifreem))/womiga(ifreem) )
+        vv(ifreem)=gaussian_random_number(0.0d0,dsqrt((nb+0.5)*womiga(ifreem)) )
+      else
+        xx(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp)/womiga(ifreem) )
+        vv(ifreem)=gaussian_random_number(0.0d0,dsqrt(kb*temp) )
+      endif
       !in the unit of au
     !end forall
     enddo
     
   end subroutine init_coordinate_velocity
-
+  
+  function bolziman(wwomiga,ttemp)
+    implicit none
+    real(kind=dp)::wwomiga,ttemp,bolziman
+    bolziman=1/(exp(wwomiga/(kb*ttemp))-1.0)
+    !<nb>=1/(exp{hw/kbT}-1)
+  end function
+  
   !========================================================!
   != init dynamical variable                              =!
   !========================================================!
@@ -110,9 +124,10 @@ module sh_dynamic
     elecKBproj(0) = 0.0
     sumproj = 0.0
     do i=1,num_wann
-      elecKBproj(i) = elecKBproj(i) +sumproj
       sumproj = sumproj + elecKBproj(i)
+      elecKBproj(i) = elecKBproj(i) +sumproj
     enddo
+    elecKBproj=elecKBproj/SUM(elecKBproj)
     
     call random_number(flagr)
     LnotfindWF = .TRUE.
