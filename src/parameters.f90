@@ -1,10 +1,12 @@
 module sh_parameters
   !! This module contains parameters to control the actions of SCSH.
   !! Also routines to read the parameters and write them out again.
+  use mkl_service
   use sh_constants
   use sh_io       ,only : stdout,maxlen  
   implicit none
   
+  integer,public  ::  mkl_threads,max_threads
   integer,public  ::  na1site,ia1site,na2site,ia2site
   integer,public  ::  ia1site_r,ia1site_l,ia2site_r,ia2site_l
   !! Number of cell in xy plan
@@ -83,14 +85,24 @@ module sh_parameters
   logical       :: L_test
   
   !initial state elec and hole
+  character(len=2):: EHinitial   !BK or EN or WF or ES
+  !if EHinitial == "BK" then
   integer ::  init_elec_K,elecK
   integer ::  init_elec_band,elecB
-  integer ::  init_elec_WF
-  integer ::  index_elec
   integer ::  init_hole_K,holeK
   integer ::  init_hole_band,holeB
+  !if EHinitial == "WF" then
+  integer ::  init_elec_WF
   integer ::  init_hole_WF
+  integer ::  index_elec
   integer ::  index_hole
+  !if EHinitial == "EN" then
+  real(kind=dp) :: init_elec_en
+  real(kind=dp) :: init_hole_en
+  !if EHinitial == "ES" then (initial the elec or hole energy surface index)
+  integer :: init_elec_es
+  integer :: init_hole_es
+  ! does count of the effect of Coulub intaction of elec and hole
   logical ::  L_exciton
   !! Dielectric Constant ->  $$\epsilon_r$$
   real(kind=dp):: epsr
@@ -145,10 +157,33 @@ module sh_parameters
                        nstep,nsnap,naver,elecb,eleck,holeb,holek,&
                        epsr,nshiftstep,dtadq,lephfile,Num_occupied,&
                        L_hotphonon,hot_mode,hot_scal,lbolziman,L_test,&
-                       L_exciton
+                       L_exciton,mkl_threads,&
+                       EHinitial,init_elec_K,init_elec_band,init_hole_K,init_hole_band,&
+                       init_elec_WF,init_hole_WF,index_elec,index_hole,&
+                       init_elec_en,init_hole_en,&
+                       init_elec_es,init_hole_es
   
   contains  
   
+  subroutine soft_information()
+  use sh_io
+  implicit none
+    time0   = io_time()
+    call cpu_time(t0)
+    stdout  = io_file_unit()
+    open(unit=stdout,file="SCSH.out")
+    call io_date(cdate,ctime)
+    call mkl_get_version_string( ctmp )
+    max_threads = mkl_get_max_threads()
+    write(stdout,*) "SCSH complied with using IMKL:"
+    write(stdout,*) trim(adjustl(ctmp))
+    write(stdout,*) 'SCSH :Execution started on ',cdate,' at ',ctime
+    write(ctmp,*) max_threads
+    write(stdout,*) "By default, Intel MKL uses "//trim(adjustl(ctmp))//" threads"
+    write(stdout,*) "where "//trim(adjustl(ctmp))//" is the number of physical cores on the system"
+    
+  end subroutine
+    
   !==================================================================!
   subroutine read_parameters( )
   !==================================================================!
@@ -188,11 +223,14 @@ module sh_parameters
     implicit none
 
     integer               :: in_unit,tot_num_lines,ierr,loop,in1,in2
+    integer               :: ia,iz
     character(len=maxlen) :: dummy
     integer               :: pos
     character, parameter :: TABCHAR = char(9) !char(9)为制表符TAB
     character(len=80) ::msg
-
+    ia = ichar('a')
+    iz = ichar('z')
+    
     in_unit=io_file_unit( )
     open (unit=in_unit, file='SHIN',form='formatted',status='old',iostat=ierr)
     if(ierr /= 0) then
@@ -244,18 +282,31 @@ module sh_parameters
       end do
       !
       dummy=utility_lowercase(dummy) !将字符串中大写字母全部改为小写
-      dummy=adjustl(dummy)
+      dummy=trim(adjustl(dummy))     !
       if( dummy(1:1)=='!' .or.  dummy(1:1)=='#' ) cycle
       if(len(trim(dummy)) == 0 ) cycle
       if(index(dummy,'=') <=1 )  cycle  !当该行中没有‘=’ 或‘=’前没有内容则跳过该行
       line_counter=line_counter+1
+      
       !去除有效行信息中的注释部分，注释可以采用 ！或者 #
       in1=index(dummy,'!')
       in2=index(dummy,'#')
       if(in1==0 .and. in2==0)  in_data(line_counter)=dummy
+      !不存在'!'与'#'
       if(in1==0 .and. in2>0 )  in_data(line_counter)=dummy(:in2-1)
       if(in2==0 .and. in1>0 )  in_data(line_counter)=dummy(:in1-1)
       if(in2> 0 .and. in1>0 )  in_data(line_counter)=dummy(:min(in1,in2)-1)
+      
+      !如果输入参数为字符串，则给字符串加上"*"
+      !itmp = index(dummy,'=')
+      !ctmp = dummy(:itmp-1)
+      !ctmp1= dummy(itmp+1:)
+      !ctmp1= trim(adjustl(ctmp1))
+      !itmp = ichar(ctmp1(1:1))
+      !if(itmp>=ia .and. itmp<=iz) then
+      !  dummy = ctmp//"='"//ctmp1//"'"
+      !endif
+      
     end do
     !得到包含有效信息的行数line_counter,和相应的数据in_data(line_counter)
 
@@ -291,6 +342,7 @@ module sh_parameters
     write(stdout,*)   "======================================================="
     rewind(incar_unit)
       !initial parameters
+      mkl_threads = max_threads
       na1site = 100
       na2site = 100
       num_wann= 22
@@ -550,9 +602,10 @@ module sh_parameters
     allocate(RE_n0_elec(num_wann,na1site,na2site),RE_n0_hole(num_wann,na1site,na2site))
     allocate(msds(1:nsnap,1:naver),xsit(1:nbasis,1:nsnap),ksit(1:nbasis,1:nsnap),msd(1:nsnap))
     
+    !! Change to Hartree atomic units
     temp          = temp/Au2k
-    gamma         = gamma/Au2ps
-    kb            = k_B_SI/Au2J*Au2k
+    gamma         = gamma*Au2ps
+    kb            = k_B_SI/Au2J*Au2k !in Hartree atomic units kb = 1
     dt            = dt/Au2fs
     real_lattice  = real_lattice/Au2ang
     a_lattice     = a_lattice/Au2ang

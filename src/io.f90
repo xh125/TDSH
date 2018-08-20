@@ -3,14 +3,19 @@ module sh_io
   use sh_constants,only : dp
   implicit none
   
-  integer, public, save           :: stdout
+  integer, public, save           :: stdout,stdin
   !! Unit on which stdout is written
   integer, parameter, public      :: maxlen = 120  
   !! Max column width of input file
   integer                         :: ierr
   character(len=maxlen)           :: msg
   character(len=maxlen)           :: home_dir
-  
+  ! For parallel execution: I/O within an image
+  ! These are set at startup by calling mp_world_start
+  integer :: ionode_id= 0       ! index of the i/o node for this image
+  Logical :: Lionode  = .True.  ! true if this processor is a i/o node
+                                   ! for this image
+                                   
   type timing_data
     !! Data about each stopwatch - for timing routines
     integer :: ncalls           
@@ -31,7 +36,7 @@ module sh_io
   !! Number of active stopwatches
   
 contains
-
+  
   subroutine io_stopwatch(tag,mode)
   !=====================================
   !! Stopwatch to time parts of the code

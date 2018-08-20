@@ -1,7 +1,5 @@
-module sh_random
-  
+module sh_random 
   implicit none
-  
   contains
   !===================================!
   != a better version of random_seed =!

@@ -5,7 +5,7 @@
 !=====================================================================================================!
 != elec-hole coulomb interactions and system interaction with environment by system-bath interactions=!     
 !=====================================================================================================!
-!= Last updata 2018-7.2 Version:0.2.8                                                                 !   
+!= Last updata 2018-8.17 Version:0.2.9                                                                 !   
 != Developed by xiehua at department of physic, USTC;xh125@mail.ustc.edu.cn                          =!
 !=====================================================================================================!
 
@@ -14,7 +14,8 @@
 !===========!
 
 program SCSH
-  use omp_lib
+  use mkl_service
+  !use omp_lib
   use sh_constants
   use sh_parameters
   use sh_io
@@ -28,18 +29,14 @@ program SCSH
   !===============!
   != preparation =!
   !===============!
-
-  time0   = io_time()
-  call cpu_time(t0)
-  stdout  = io_file_unit()
-  open(unit=stdout,file="SCSH.out")
-  call io_date(cdate,ctime)
-  write(stdout,*) 'SCSH :Execution started on ',cdate,' at ',ctime
-  
+  call soft_information()
   call read_parameters ()
   call read_TB_parameters(num_wann,nfreem,HmnR_Tij_0,HmnR_Tij_ep)
   call init_random_seed()  
   
+  call mkl_set_num_threads(mkl_threads)
+  write(ctmp,*) mkl_threads
+  write(stdout,*) "Reset Intel MKL uses "//trim(adjustl(ctmp))//" threads."
   !==========================!
   != loop over realizations =!
   !==========================!
@@ -71,7 +68,7 @@ program SCSH
         != update x,v,c,e,p,d,w,g =!
         !==========================!
         !rk4方法数组计算核的动力学，得到新的Q
-        call rk4_nuclei(Q,Vq,p0_elec,p0_hole,d0_elec,d0_hole,dt)
+        call rk4_nuclei(Q,Vq,p0_elec,p0_hole,d0_elec,d0_hole,dt) !have bug
         !rk4方法计算电子空穴在透热表象下的动力学，
         !得到dt时间后新的c_elec,n_ecle和c_hole,n_hole
         call rk4_electron_diabatic(Q0,c_elec,n_elec,dt,h_elec)

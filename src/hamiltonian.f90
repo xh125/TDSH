@@ -256,7 +256,8 @@ module sh_hamiltonian
         enddo
         call close_file(HmnR_Tij_name,HmnR_Tij_unit)
       end do
-    
+      adj_Tij = abs(HmnR_Tij_0)>0.04
+      
     endif
   
     HmnR_Tij_0  = HmnR_Tij_0/AU2EV   !!转换 为原子单位
@@ -430,34 +431,16 @@ module sh_hamiltonian
   !========================================!
   subroutine dia_H(hh,ee,pp)
     use f95_precision
-    !use blas95
     use lapack95
     implicit none
     !!use LAPACK with Fortran f95 interface
-    !include "mkl_lapack.fi"
   
-    integer:: ierror,info
     real(kind=dp):: hh(1:nbasis,1:nbasis),ee(1:nbasis),pp(1:nbasis,1:nbasis)
     !pp(:,ibasis) 本征态
-    real(kind=dp),allocatable::fv1(:),fv2(:)
-    !!!USED in MKL geev
-    real(kind=dp),allocatable::vl(:,:),eei(:,:)
   
-    allocate(fv1(1:nbasis))
-    allocate(fv2(1:nbasis))
-    allocate(vl(nbasis,nbasis))
-    allocate(eei(nbasis,nbasis))
-    !!!!!!!!!!!!!!!!!!!!!!!
-    vl = 0.0
-    eei = 0.0
     pp=hh
-    !call rs(nbasis,nbasis,hh,ee,1,pp,fv1,fv2,ierror)
     !!     USE MKL lib could have a high speed in dgeev , sgeev   !in page 1131 and 1241
-    !call geev(hh,ee,eei,vl,pp,info)
     call syev(pp,ee,'V','U')
-    !call geev(hh,ee,eei)
-    deallocate(vl,eei)
-    deallocate(fv1,fv2)
     !!On exit, hh array is overwritten
   end subroutine dia_H
   
@@ -480,7 +463,7 @@ module sh_hamiltonian
     !dij_qv
     do ibasis=1,nbasis
       do jbasis=1,ibasis
-        if(abs(ee(ibasis)-ee(jbasis))<=1.0) then
+        if(abs(ee(ibasis)-ee(jbasis))<=1.0/au2ev) then
         do ifreem=1,nfreem
           !g_qvk1k2*p_k1i*p_k2j
           !k1

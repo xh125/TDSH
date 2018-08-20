@@ -1,4 +1,5 @@
 module sh_constants
+  use kinds , only : dp,dpc
   implicit none
   
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
@@ -8,8 +9,8 @@ module sh_constants
 !% REF: HTTP://EN.WIKIPEDIA.ORG/WIKI/ATOMIC_MASS_UNIT  %!
 !% REF: HTTP://EN.WIKIPEDIA.ORG/WIKI/PHYSICAL_CONSTANT %!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!  
-  integer,parameter,public        ::  dp   = kind(1.0D0)
-  integer,parameter,public        ::  dpc  = kind((1.0D0,1.0D0))
+  !integer,parameter,public        ::  dp   = kind(1.0D0)
+  !integer,parameter,public        ::  dpc  = kind((1.0D0,1.0D0))
   real(kind=dp),parameter,public  ::             &
     au2cm = 2.194887656d5                       ,&
     au2ev = 2.7211d1                            ,&
